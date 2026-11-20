@@ -1,11 +1,8 @@
 // Generating an avatar with a local image-capable agent; the run is canceled if the picker closes.
 import { useEffect, useRef, useState } from 'react'
-import { isWebClientLocation } from '@/app-shell/platform/web-client-location'
 import { useAppStore } from '@/store'
 import { createNonSecureContextUuid } from '../../../../shared/identifiers/non-secure-context-uuid'
 import type {
-  AvatarGenerationApi,
-  AvatarGenerationCapability,
   AvatarGenerationFailure,
   AvatarImageAgent,
   AvatarImageAgentStatus,
@@ -14,6 +11,14 @@ import type {
 import { describesRealPerson } from '../../../../shared/avatar-generation/avatar-generation-prompt'
 import { pickAvatarAgent } from '../../../../shared/avatar-generation/avatar-generation-agent-choice'
 import { avatarPngFromBlob } from './bot-avatar-intake'
+import {
+  avatarGenerationApi,
+  refreshAvatarCapability,
+  setAvatarAgentStatus,
+  useAvatarCapability
+} from './avatar-generation-capability-store'
+
+const NO_AGENTS: readonly AvatarImageAgentStatus[] = []
 
 export type AvatarGenerationRun =
   | { kind: 'idle' }
@@ -22,11 +27,6 @@ export type AvatarGenerationRun =
 
 /** The last picture made: the square 512 px PNG an upload would save, and what it was asked for. */
 export type GeneratedAvatar = { png: string; description: string }
-
-function generationApi(): AvatarGenerationApi | null {
-  // Desktop only: a paired web or phone client has no local agents to run.
-  return isWebClientLocation() ? null : (window.api?.avatarGeneration ?? null)
-}
 
 function rememberAgent(agent: AvatarImageAgent): void {
   const { settings, updateSettings } = useAppStore.getState()
@@ -41,7 +41,7 @@ function imageBlob(image: GeneratedAvatarImage): Blob {
 }
 
 export function useAvatarGeneration(onResult: (result: GeneratedAvatar) => void): {
-  agents: AvatarImageAgentStatus[]
+  agents: readonly AvatarImageAgentStatus[]
   /** null while no capable agent was found. */
   agent: AvatarImageAgent | null
   selectAgent: (agent: AvatarImageAgent) => void
@@ -52,7 +52,7 @@ export function useAvatarGeneration(onResult: (result: GeneratedAvatar) => void)
   cancel: () => void
   clearError: () => void
 } {
-  const [agents, setAgents] = useState<AvatarImageAgentStatus[]>([])
+  const agents = useAvatarCapability() ?? NO_AGENTS
   const remembered = useAppStore((store) => store.settings?.avatarGenerationAgent)
   const [chosen, setChosen] = useState<AvatarImageAgent | null>(null)
   const agent = pickAvatarAgent(agents, chosen ?? remembered)
@@ -65,31 +65,15 @@ export function useAvatarGeneration(onResult: (result: GeneratedAvatar) => void)
     latestOnResult.current = onResult
   })
 
-  const setStatus = (target: AvatarImageAgent, status: AvatarImageAgentStatus['status']): void =>
-    setAgents((list) =>
-      list.map((entry) => (entry.agent === target ? { agent: target, status } : entry))
-    )
-
   useEffect(() => {
-    const api = generationApi()
-    if (!api) {
-      return
-    }
-    let live = true
-    void api.capability().then(
-      (found: AvatarGenerationCapability | undefined) => {
-        // A bridge without this namespace (web fallbacks) answers undefined: keep Generate hidden.
-        if (live && Array.isArray(found?.agents)) {
-          setAgents(found.agents)
-        }
-      },
-      () => {}
-    )
+    // Picks up agents installed or signed in since the last check, for the next open's layout.
+    refreshAvatarCapability()
     return () => {
-      live = false
       // An open run costs the user's usage; nobody is left to see it.
       if (current.current) {
-        void api.cancel({ requestId: current.current }).catch(() => {})
+        void avatarGenerationApi()
+          ?.cancel({ requestId: current.current })
+          .catch(() => {})
         current.current = null
       }
     }
@@ -104,7 +88,7 @@ export function useAvatarGeneration(onResult: (result: GeneratedAvatar) => void)
   }
 
   const generate = (description: string): void => {
-    const api = generationApi()
+    const api = avatarGenerationApi()
     const text = description.trim()
     if (!api || !text || !agent || run.kind === 'running') {
       return
@@ -135,13 +119,13 @@ export function useAvatarGeneration(onResult: (result: GeneratedAvatar) => void)
             return
           }
           if (outcome.error === 'signed-out') {
-            setStatus(agent, 'signed-out')
+            setAvatarAgentStatus(agent, 'signed-out')
           }
           fail(outcome.error)
           return
         }
         // A run that worked proves the agent ready, whatever an older probe said.
-        setStatus(outcome.agent, 'ready')
+        setAvatarAgentStatus(outcome.agent, 'ready')
         // The same square crop an upload gets, so what shows is exactly what saves.
         const png = await avatarPngFromBlob(imageBlob(outcome.image)).catch(() => null)
         if (current.current !== requestId) {
@@ -166,7 +150,7 @@ export function useAvatarGeneration(onResult: (result: GeneratedAvatar) => void)
     current.current = null
     setRun({ kind: 'idle' })
     if (requestId) {
-      void generationApi()
+      void avatarGenerationApi()
         ?.cancel({ requestId })
         .catch(() => {})
     }

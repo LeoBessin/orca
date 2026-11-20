@@ -130,7 +130,13 @@ export function BotPictureCarousel({
         // A face that draws itself holds its own controls when current, so it isn't a button then.
         if (face.render && distance === 0) {
           return (
-            <div key={face.key} data-position={position} style={style} className={faceClass}>
+            <div
+              key={face.key}
+              data-face={face.key}
+              data-position={position}
+              style={style}
+              className={faceClass}
+            >
               {face.render(true)}
             </div>
           )
@@ -138,6 +144,7 @@ export function BotPictureCarousel({
         return (
           <button
             key={face.key}
+            data-face={face.key}
             type="button"
             tabIndex={-1}
             aria-hidden

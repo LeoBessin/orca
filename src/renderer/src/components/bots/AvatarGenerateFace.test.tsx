@@ -15,6 +15,7 @@ import {
   type SlotPicture
 } from './AvatarGenerateFace'
 import type { GeneratedAvatar } from './use-avatar-generation'
+import { resetAvatarCapabilityForTest } from './avatar-generation-capability-store'
 
 // The real crop draws on a canvas, which happy-dom lacks.
 vi.mock('./bot-avatar-intake', () => ({ avatarPngFromBlob: async () => 'CROPPED' }))
@@ -71,6 +72,7 @@ async function describeAndEnter(text: string): Promise<HTMLTextAreaElement> {
 
 describe('Generate face', () => {
   beforeEach(() => {
+    resetAvatarCapabilityForTest()
     Reflect.deleteProperty(window, 'api')
   })
   afterEach(cleanup)

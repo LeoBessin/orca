@@ -25,6 +25,7 @@ import {
   useGenerateFace
 } from './AvatarGenerateFace'
 import { BotPictureRowFold } from './BotPictureRowFold'
+import { readAvatarCapability } from './avatar-generation-capability-store'
 import {
   CUSTOM_FACE,
   GENERATE_FACE,
@@ -182,7 +183,9 @@ export function BotPicturePicker({
     },
     custom?.src ? { src: custom.src, description: custom.description } : null
   )
-  const withGenerate = face.agent !== null
+  // Read once, at mount: the face list is final from the first paint. A check still unanswered
+  // at the very first open (just after launch) means no Generate face for that open only.
+  const [withGenerate] = useState(() => (readAvatarCapability()?.length ?? 0) > 0)
   // With Generate, the user's own picture lives in its slot: one tile, never two. An older
   // picture with no image (an emoji) keeps its own face.
   const customInSlot = withGenerate && Boolean(custom?.src)

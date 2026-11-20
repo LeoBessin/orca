@@ -6,6 +6,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   statSync,
   symlinkSync,
@@ -15,6 +16,8 @@ import { homedir, tmpdir } from 'node:os'
 import type * as Os from 'node:os'
 import { join } from 'node:path'
 import type * as CodexFsUtils from '../../../filesystem/atomic-file-publication'
+import type * as NodeFs from 'node:fs'
+import type * as WslPaths from '../../../../shared/file-access/wsl-paths'
 
 // Bypass platform-specific socket paths so asserted config bytes stay host-independent.
 vi.mock('../shared-server/codex-daemon-socket-path-guard', async (importOriginal) => ({
@@ -24,8 +27,39 @@ vi.mock('../shared-server/codex-daemon-socket-path-guard', async (importOriginal
 
 const { homedirMock, promotionTestState } = vi.hoisted(() => ({
   homedirMock: vi.fn<() => string>(),
-  promotionTestState: { failAtomicWrite: false, atomicWritePaths: [] as string[] }
+  promotionTestState: {
+    failAtomicWrite: false,
+    atomicWritePaths: [] as string[],
+    // Treated as a WSL guest path, whose next write stops after a prefix with ENOSPC.
+    wslTarget: null as string | null
+  }
 }))
+
+vi.mock('../../../../shared/file-access/wsl-paths', async (importOriginal) => {
+  const actual = await importOriginal<typeof WslPaths>()
+  return {
+    ...actual,
+    parseWslUncPath: (path: string) =>
+      path === promotionTestState.wslTarget
+        ? { distro: 'Ubuntu', linuxPath: '/home/u/.codex/config.toml' }
+        : actual.parseWslUncPath(path)
+  }
+})
+
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof NodeFs>()
+  return {
+    ...actual,
+    writeFileSync: (...args: Parameters<typeof actual.writeFileSync>) => {
+      if (args[0] === promotionTestState.wslTarget) {
+        promotionTestState.wslTarget = null
+        actual.writeFileSync(args[0], 'model =', 'utf-8')
+        throw Object.assign(new Error('no space left on device'), { code: 'ENOSPC' })
+      }
+      return actual.writeFileSync(...args)
+    }
+  }
+})
 
 vi.mock('node:os', async (importOriginal) => {
   const actual = await importOriginal<typeof Os>()
@@ -63,6 +97,7 @@ beforeEach(() => {
   homedirMock.mockReturnValue(tmpHome)
   promotionTestState.failAtomicWrite = false
   promotionTestState.atomicWritePaths.length = 0
+  promotionTestState.wslTarget = null
   if (homedir() !== tmpHome) {
     throw new Error('node:os homedir mock is not active; refusing to touch the real ~/.codex')
   }
@@ -120,6 +155,18 @@ function simulateCodexSettingWrite(key: string, rawValue: string): void {
 }
 
 describe('codex settings write-back promotion', () => {
+  it('keeps a WSL config whole when its in-place write runs out of space', () => {
+    const original = 'model = "gpt-5"\n\n[profiles.work]\nmodel = "o3"\n'
+    writeSystemConfig(original)
+    syncSystemConfigIntoManagedCodexHome()
+    simulateCodexSettingWrite('model', '"o4"')
+    promotionTestState.wslTarget = realpathSync(systemConfigPath())
+
+    syncSystemConfigIntoManagedCodexHome()
+
+    expect(readSystemConfig()).toBe(original)
+  })
+
   it('retries a runtime change after a missing system config returns', () => {
     writeSystemConfig('model = "gpt-5"\n')
     syncSystemConfigIntoManagedCodexHome()

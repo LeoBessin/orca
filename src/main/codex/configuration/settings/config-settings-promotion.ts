@@ -1,8 +1,9 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { observeAgentStateFile } from '../codex-path-observation'
 import { resolvePromotionWriteTarget } from './config-settings-promotion-write-target'
 import { writeFileAtomically } from '../../../filesystem/atomic-file-publication'
+import { rewriteFileInPlace } from '../../../filesystem/in-place-file-rewrite'
 import { observeFilePublication } from '../../../filesystem/file-content-observation'
 import { assertGuardedFileCurrent } from '../../../filesystem/concurrent-file-edit-guard'
 import { parseWslUncPath } from '../../../../shared/file-access/wsl-paths'
@@ -187,7 +188,7 @@ function promoteCodexRuntimeSettingsToSystemUnsafe(
   if (targetExists && parseWslUncPath(writeTarget.path)) {
     // WSL 9P symlink metadata is unreliable; write through to preserve the guest inode.
     assertGuardedFileCurrent(writeTarget.path)
-    writeFileSync(writeTarget.path, nextContent, 'utf-8')
+    rewriteFileInPlace(writeTarget.path, nextContent)
     observeFilePublication(writeTarget.path, nextContent)
     return { conflicts, runtimeValuesToPreserve, mirroredMcpServers, mirroredMcpServerRoot }
   }

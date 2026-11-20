@@ -187,7 +187,11 @@ describe('federated read RPC transport routing', () => {
           )
         ).toBe(true)
         expect(prepare).not.toHaveBeenCalled()
-        sendRemoteRuntimeRequestOnSocketMock.mockResolvedValue({ ok: true, result: { items: [] } })
+        sendRemoteRuntimeRequestOnSocketMock.mockResolvedValue({
+          ok: true,
+          result: { items: [] },
+          _meta: { runtimeId: 'queue-host' }
+        })
         sendRemoteRuntimeSharedControlRequestMock.mockResolvedValue({
           ok: true,
           result: { items: [] }
@@ -287,7 +291,11 @@ describe('federated read RPC transport routing', () => {
         expect(await fresh).toBe('fresh')
         const survivor = new AbortController()
         controllers.push(survivor)
-        sendRemoteRuntimeRequestOnSocketMock.mockResolvedValue({ ok: true, result: { items: [] } })
+        sendRemoteRuntimeRequestOnSocketMock.mockResolvedValue({
+          ok: true,
+          result: { items: [] },
+          _meta: { runtimeId: 'started-host' }
+        })
         sendRemoteRuntimeSharedControlRequestMock.mockResolvedValue({
           ok: true,
           result: { items: [] }

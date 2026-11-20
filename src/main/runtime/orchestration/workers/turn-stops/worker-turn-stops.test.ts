@@ -486,7 +486,7 @@ it.each(['rejection', 'deleted mail'])(
     reportWorkerTurnStop(
       ctx.db,
       { kind: 'local', dispatch: ctx.dispatch },
-      { from: HANDLE, reason: 'finished' },
+      { from: HANDLE, reason: 'finished', lastOutput: '' },
       ctx.deps
     )
     const next = ctx.db.insertMessage({
@@ -544,7 +544,7 @@ it.each([0, 100, 1_000])(
         reportWorkerTurnStop(
           db,
           target,
-          { from: 'term_remote', reason: 'needs-input', stopKey: 'prompt' },
+          { from: 'term_remote', reason: 'needs-input', stopKey: 'prompt', lastOutput: '' },
           deps
         )
       ).toBe(true)
@@ -562,7 +562,12 @@ it.each([0, 100, 1_000])(
       )
       expect(canPromiseWorkerFinishReport(db, target, deps)).toBe(true)
       expect(
-        reportWorkerTurnStop(db, target, { from: 'term_remote', reason: 'finished' }, deps)
+        reportWorkerTurnStop(
+          db,
+          target,
+          { from: 'term_remote', reason: 'finished', lastOutput: '' },
+          deps
+        )
       ).toBe(true)
       expect(canPromiseWorkerFinishReport(db, target, deps)).toBe(false)
       const followUp = db.insertMessage({
@@ -574,7 +579,12 @@ it.each([0, 100, 1_000])(
       db.markAsRead([followUp.id])
       expect(canPromiseWorkerFinishReport(db, target, deps)).toBe(true)
       expect(
-        reportWorkerTurnStop(db, target, { from: 'term_remote', reason: 'finished' }, deps)
+        reportWorkerTurnStop(
+          db,
+          target,
+          { from: 'term_remote', reason: 'finished', lastOutput: '' },
+          deps
+        )
       ).toBe(true)
       expect(canPromiseWorkerFinishReport(db, target, deps)).toBe(false)
       db.db.prepare('DELETE FROM messages WHERE id = ?').run(followUp.id)

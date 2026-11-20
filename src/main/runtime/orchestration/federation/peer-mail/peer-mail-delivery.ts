@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import {
   ORCHESTRATION_PEER_BOT_MAIL_RUNTIME_CAPABILITY,
+  ORCHESTRATION_PEER_MAIL_FILES_RUNTIME_CAPABILITY,
   ORCHESTRATION_PEER_MAIL_RUNTIME_CAPABILITY,
   ORCHESTRATION_PEER_MAIL_TYPES_RUNTIME_CAPABILITY
 } from '../../../../../shared/orchestration/orchestration-runtime-capabilities'
@@ -72,7 +73,7 @@ export async function requirePeerMailServer(
   selector: string,
   toBot = false,
   type?: z.infer<typeof PeerMailMessageType>
-): Promise<OrchestrationWorkerServer> {
+): Promise<OrchestrationWorkerServer & { takesFiles: boolean }> {
   const server = await runtime.resolveOrchestrationWorkerServer(selector)
   const status = RuntimeStatusCapabilities.safeParse(
     await runtime.callOrchestrationWorkerServer(
@@ -120,7 +121,9 @@ export async function requirePeerMailServer(
       { ...NOTHING_SENT, server: server.name }
     )
   }
-  return server
+  const takesFiles =
+    status.data.capabilities?.includes(ORCHESTRATION_PEER_MAIL_FILES_RUNTIME_CAPABILITY) === true
+  return { ...server, takesFiles }
 }
 
 /** The pairing credential the server knows this Orca by; a re-pair starts new conversations under it. */

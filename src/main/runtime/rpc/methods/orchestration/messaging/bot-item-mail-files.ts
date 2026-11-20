@@ -69,3 +69,9 @@ export async function withItemMailFiles<T extends ItemMail>(
     throw error
   }
 }
+
+/** The mail's body with its images named as `@path` too, for mail that carries no image blocks. */
+export function itemMailFilesBody(mail: Pick<ItemMail, 'params' | 'images'>): string {
+  const images = (mail.images ?? []).map(formatNativeChatFileReference).join('\n')
+  return [mail.params.body?.trimEnd(), images].filter(Boolean).join('\n\n')
+}

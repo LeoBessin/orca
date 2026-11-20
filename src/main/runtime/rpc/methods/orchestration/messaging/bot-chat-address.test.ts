@@ -18,8 +18,8 @@ vi.mock(import('./bot-item-mail-files'), async (importOriginal) => ({
 import { routeBotMail } from './bot-chat-address'
 
 it("carries a send's admitted files in the body when no bot takes it and it goes as ordinary mail", async () => {
-  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: with no --chat or --item to resolve, routing reads nothing from the runtime.
   const context = {
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: with no --chat or --item to resolve, routing reads nothing from the runtime.
     runtime: {} as OrcaRuntimeService,
     orchestrationCaller: undefined,
     recordMutationReceipt: undefined

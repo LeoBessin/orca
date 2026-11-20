@@ -103,7 +103,15 @@ it.each([
         return {
           all(...args) {
             const rows = statement.all(...args)
-            historyRows += rows.length
+            // Crew publication reads only the newly created Dispatches by primary key.
+            if (
+              !(
+                sql.includes('FROM dispatch_contexts') &&
+                sql.includes('WHERE id IN (SELECT value FROM json_each(?))')
+              )
+            ) {
+              historyRows += rows.length
+            }
             return rows
           },
           get: statement.get.bind(statement),

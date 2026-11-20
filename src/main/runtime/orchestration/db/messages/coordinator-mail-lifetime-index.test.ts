@@ -104,7 +104,8 @@ it.each([
     db.db
       .prepare("UPDATE dispatch_contexts SET completed_at = '2001-01-01T00:00:00Z' WHERE id = ?")
       .run(live.id)
-    expect(await prepareCoordinatorMailCount(db, worker.id, () => true)).toBe(messages + 1)
+    expect(await prepareCoordinatorMailCount(db, worker.id, () => true)).toBeUndefined()
+    expect(readCoordinatorMailCount(db, worker.id)).toBe(messages + 1)
     db.db.exec('ROLLBACK TO lifetime_test; RELEASE lifetime_test')
     expect(readCoordinatorMailCount(db, worker.id)).toBe(0)
   }

@@ -45,6 +45,8 @@ function fixture() {
       DROP INDEX idx_runs_coordinator_orca_session_id;
       DROP INDEX idx_dispatch_assignee_orca_session_id;
       DROP INDEX idx_dispatch_creator_orca_session_id;
+      DROP INDEX idx_dispatch_creator_session_work;
+      DROP INDEX idx_dispatch_creator_handle_work;
       DROP INDEX idx_dispatch_assignee_orca_session_backfill;
       DROP INDEX idx_dispatch_creator_orca_session_backfill;
       DROP INDEX idx_dispatch_session_presentation;

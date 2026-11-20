@@ -26760,7 +26760,7 @@
       "runningCount": "В работе: {{count}}",
       "showMoreCount": "Показать ещё {{count}}",
       "workers": "Исполнители",
-      "waitingCount": "Ожидание: {{count}}"
+      "waitingCount": "Ждут: {{count}}"
     },
     "cloudSignIn": {
       "automationScheduledOnly": "Запускается только по расписанию: события приостановлены, пока вы не вошли в Orca",

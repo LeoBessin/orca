@@ -77,7 +77,9 @@ export class SessionSearchToolPurge {
     private readonly db: SyncDatabase,
     private readonly closed: () => boolean,
     private readonly onMessagesChanged: (delta: number) => void,
-    private readonly onError: (error: unknown) => void
+    private readonly onError: (error: unknown) => void,
+    /** Whether indexing is quiet enough for a full merge, which pauses when indexing resumes. */
+    private readonly quiet: () => boolean = () => true
   ) {}
 
   request(): Promise<void> {
@@ -117,8 +119,11 @@ export class SessionSearchToolPurge {
         if (cursor > start && !this.closed()) {
           writeScannedMark(this.db, cursor)
         }
-        if ((changed || sessionSearchIndexCompactionDue(this.db)) && !this.closed()) {
-          await compactSessionSearchIndex(this.db, this.closed)
+        if (
+          (changed || (this.quiet() && sessionSearchIndexCompactionDue(this.db))) &&
+          !this.closed()
+        ) {
+          await compactSessionSearchIndex(this.db, () => this.closed() || !this.quiet())
         }
       }
     } catch (error) {

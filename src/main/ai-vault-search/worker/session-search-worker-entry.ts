@@ -1,5 +1,5 @@
 import { SessionSearchToolPurge } from '../storage/session-search-tool-purge'
-import { afterQuietDeletes } from '../storage/session-search-index-compaction'
+import { SessionSearchQuietIndexing } from '../storage/session-search-index-compaction'
 import { readIndexGeneration } from '../storage/session-search-index-generation'
 import { parentPort } from 'node:worker_threads'
 import SyncDatabase from '../../sqlite/sync-database'
@@ -129,9 +129,6 @@ async function execute({ id, command: c }: SearchWorkerRequest): Promise<SearchW
       return { id }
     }
     const onMessagesChanged = (n: number): void => {
-      if (n < 0) {
-        requestIndexCompaction()
-      }
       counts.messages += n
       parentPort?.postMessage({
         id: 0,
@@ -148,8 +145,10 @@ async function execute({ id, command: c }: SearchWorkerRequest): Promise<SearchW
       store.connection,
       () => false,
       onMessagesChanged,
-      onError
+      onError,
+      () => indexing.quiet
     )
+    indexing.wrote()
     void toolPurge.request()
     store.setRetentionCutoffMs(c.cutoff)
     return { id, snapshot: snapshot(), counts, generation: readIndexGeneration(store.connection) }
@@ -185,6 +184,9 @@ async function execute({ id, command: c }: SearchWorkerRequest): Promise<SearchW
     handlePaths.clear()
     reset = snapshot()
     void toolPurge?.request()
+  }
+  if (c.op !== 'sync') {
+    indexing.wrote()
   }
   let path: string | undefined
   let accepted = true
@@ -277,7 +279,7 @@ async function execute({ id, command: c }: SearchWorkerRequest): Promise<SearchW
     generation: readIndexGeneration(store.connection)
   }
 }
-const requestIndexCompaction = afterQuietDeletes(() => void toolPurge?.request())
+const indexing = new SessionSearchQuietIndexing(() => void toolPurge?.request())
 const handlePaths = new Map<number, string>()
 let lane = Promise.resolve()
 parentPort?.on('message', (request: SearchWorkerRequest) => {

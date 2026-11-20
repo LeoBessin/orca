@@ -3,6 +3,8 @@ import type SyncDatabase from '../../sqlite/sync-database'
 import { traceSessionSearch } from '../session-search-trace'
 
 const DELETED_KEY = 'fts_deleted_rows'
+// Set while a full merge is under way, so a paused merge resumes rather than starting over.
+const MERGING_KEY = 'fts_full_merge_running'
 // Deleted rows keep their index entries until a merge rewrites the oldest segment holding them.
 const MIN_DELETED_ROWS = 50_000
 const MERGE_PAGES_PER_STEP = 32
@@ -12,16 +14,25 @@ const RECLAIM_PAGES_PER_STEP = 128
 const WORK_BEFORE_REST_MS = 25
 const REST_PER_WORK = 9
 
-// Merging waits for indexing to go quiet, so a burst of reindexing triggers one pass.
-const QUIET_AFTER_DELETES_MS = 60_000
+// Merging waits until indexing has been quiet this long, and pauses when it resumes.
+const QUIET_INDEXING_MS = 60_000
 
-/** Returns a notifier that calls `run` once deletes have stopped for a minute. */
-export function afterQuietDeletes(run: () => void): () => void {
-  let timer: NodeJS.Timeout | undefined
-  return () => {
-    clearTimeout(timer)
-    timer = setTimeout(run, QUIET_AFTER_DELETES_MS)
-    timer.unref()
+/** Tracks index writes; `run` is called once they have been quiet for a minute. */
+export class SessionSearchQuietIndexing {
+  private lastWrite = 0
+  private timer: NodeJS.Timeout | undefined
+
+  constructor(private readonly run: () => void) {}
+
+  wrote(): void {
+    this.lastWrite = performance.now()
+    clearTimeout(this.timer)
+    this.timer = setTimeout(this.run, QUIET_INDEXING_MS)
+    this.timer.unref()
+  }
+
+  get quiet(): boolean {
+    return performance.now() - this.lastWrite >= QUIET_INDEXING_MS
   }
 }
 
@@ -49,10 +60,11 @@ export function sessionSearchIndexCompactionDue(db: SyncDatabase): boolean {
   )
 }
 
-/** Merges every segment into one in bounded steps, dropping deleted rows, then returns the freed pages. */
+/** Merges every segment into one in bounded steps, dropping deleted rows, then returns the freed pages.
+ *  `stop` pauses it between steps; the next call continues the same merge. */
 export async function compactSessionSearchIndex(
   db: SyncDatabase,
-  closed: () => boolean
+  stop: () => boolean
 ): Promise<void> {
   let work = 0
   const step = async <T>(run: () => T): Promise<T> => {
@@ -69,19 +81,28 @@ export async function compactSessionSearchIndex(
   }
   const changes = db.prepare('SELECT total_changes() AS n')
   const merge = db.prepare("INSERT INTO messages_fts(messages_fts, rank) VALUES('merge', ?)")
+  const setMeta = db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)')
   // Negative starts merging all segments together; positive steps continue that merge.
-  let pages = -MERGE_PAGES_PER_STEP
-  while (!closed()) {
+  let pages = db.prepare('SELECT 1 FROM meta WHERE key = ?').get(MERGING_KEY)
+    ? MERGE_PAGES_PER_STEP
+    : -MERGE_PAGES_PER_STEP
+  while (!stop()) {
     const before = Number(changes.get()!.n)
     await step(() => traceSessionSearch('merge', () => merge.run(pages)))
     if (Number(changes.get()!.n) - before < 2) {
-      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(DELETED_KEY, '0')
+      db.exec('BEGIN IMMEDIATE')
+      setMeta.run(DELETED_KEY, '0')
+      db.prepare('DELETE FROM meta WHERE key = ?').run(MERGING_KEY)
+      db.exec('COMMIT')
       break
+    }
+    if (pages < 0) {
+      setMeta.run(MERGING_KEY, '1')
     }
     pages = MERGE_PAGES_PER_STEP
   }
-  let free = closed() ? 0 : Number(db.pragma('freelist_count', { simple: true }))
-  while (free > 0 && !closed()) {
+  let free = stop() ? 0 : Number(db.pragma('freelist_count', { simple: true }))
+  while (free > 0 && !stop()) {
     await step(() =>
       traceSessionSearch('vacuum', () => db.pragma(`incremental_vacuum(${RECLAIM_PAGES_PER_STEP})`))
     )

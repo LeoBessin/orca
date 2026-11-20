@@ -308,26 +308,45 @@ describe('terminal worker turn stops', () => {
   })
 })
 
-describe('chat worker turn stops', () => {
-  const completion = (
-    outcome: 'success' | 'failure',
-    turnId = 'turn-1'
-  ): AgentSessionTurnCompletionEvent => ({
-    type: 'completion',
-    completion: {
-      scope: {
-        executionHostId: LOCAL_EXECUTION_HOST_ID,
-        wslDistro: null,
-        workspaceId: 'repo::/tmp/wt',
-        workspaceKind: 'git-worktree'
-      },
-      sessionId: CHAT_SESSION,
-      turnId,
-      outcome,
-      completedAt: 1
-    }
+const completion = (
+  outcome: 'success' | 'failure',
+  turnId = 'turn-1'
+): AgentSessionTurnCompletionEvent => ({
+  type: 'completion',
+  completion: {
+    scope: {
+      executionHostId: LOCAL_EXECUTION_HOST_ID,
+      wslDistro: null,
+      workspaceId: 'repo::/tmp/wt',
+      workspaceKind: 'git-worktree'
+    },
+    sessionId: CHAT_SESSION,
+    turnId,
+    outcome,
+    completedAt: 1
+  }
+})
+function chatWithTimers(ctx: ReturnType<typeof setup>) {
+  const timers: (() => void)[] = []
+  const status = 'idle' as const
+  const report = chatWorkerTurnStopReporter(ctx.deps, (run) => {
+    timers.push(run)
   })
+  return {
+    finish: (turnId: string) =>
+      report.onTurnAttention(completion('success', turnId), () => ({
+        status,
+        lastAssistantMessage: 'Done.'
+      })),
+    runTimers: () => {
+      for (const run of timers.splice(0)) {
+        run()
+      }
+    }
+  }
+}
 
+describe('chat worker turn stops', () => {
   // The report claimed a follow-up on the same chat; its task is not handed over yet.
   function startingFollowUp(ctx: ReturnType<typeof setup>) {
     const followUp = ctx.db.createStartingWorkerDispatch({
@@ -348,26 +367,6 @@ describe('chat worker turn stops', () => {
       setupState: 'not_applicable'
     })
     return followUp
-  }
-
-  function chatWithTimers(ctx: ReturnType<typeof setup>) {
-    const timers: (() => void)[] = []
-    const status = 'idle' as const
-    const report = chatWorkerTurnStopReporter(ctx.deps, (run) => {
-      timers.push(run)
-    })
-    return {
-      finish: (turnId: string) =>
-        report.onTurnAttention(completion('success', turnId), () => ({
-          status,
-          lastAssistantMessage: 'Done.'
-        })),
-      runTimers: () => {
-        for (const run of timers.splice(0)) {
-          run()
-        }
-      }
-    }
   }
 
   it('still reports a follow-up whose own turn ended before its start settled', () => {

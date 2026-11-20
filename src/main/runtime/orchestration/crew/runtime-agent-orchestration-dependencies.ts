@@ -34,7 +34,10 @@ export abstract class OrcaRuntimeWithAgentOrchestrationDependencies extends Orca
     if (target.kind === 'local') {
       return canPromiseWorkerFinishReport(db, target, this.workerTurnStopReportDeps)
     }
-    const attachment = target.attachment
+    const attachment = db.getRemoteDispatchAttachment(target.attachment.dispatch_id)
+    if (!attachment) {
+      return false
+    }
     const live = () => {
       if (!current()) {
         return false

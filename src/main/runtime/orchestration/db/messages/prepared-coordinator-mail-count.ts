@@ -35,7 +35,7 @@ function refreshExternalWrites(db: OrchestrationDb, owner: Owner): void {
           UNION ALL SELECT 1 FROM remote_dispatch_attachments WHERE dispatch_id = orca_coordinator_mail_counts.dispatch_id AND state IN ('starting', 'ready'));
         UPDATE orca_coordinator_mail_counts SET mail_count = 0, cursor = 0, ready = 0, revision = revision + 1,
         run_id = coalesce((SELECT run_id FROM dispatch_contexts WHERE id = orca_coordinator_mail_counts.dispatch_id),
-          (SELECT run_id FROM remote_dispatch_attachments WHERE dispatch_id = orca_coordinator_mail_counts.dispatch_id), run_id);
+          (SELECT home_run_id FROM remote_dispatch_attachments WHERE dispatch_id = orca_coordinator_mail_counts.dispatch_id), run_id);
         DELETE FROM orca_mail_lifetime_runs`)
     owner.dataVersion = version
   }
@@ -79,7 +79,7 @@ export async function prepareCoordinatorMailCount(
   db.db
     .prepare(
       `INSERT OR IGNORE INTO orca_coordinator_mail_counts(dispatch_id, run_id) SELECT id, run_id FROM dispatch_contexts WHERE id = ?1 AND status IN ('pending', 'dispatched')
-        UNION ALL SELECT dispatch_id, run_id FROM remote_dispatch_attachments WHERE dispatch_id = ?1 AND state IN ('starting', 'ready')
+        UNION ALL SELECT dispatch_id, home_run_id FROM remote_dispatch_attachments WHERE dispatch_id = ?1 AND state IN ('starting', 'ready')
           AND NOT EXISTS (SELECT 1 FROM dispatch_contexts WHERE id = ?1)`
     )
     .run(dispatchId)

@@ -11,9 +11,13 @@ type HostGroup = {
 export function groupFederatedDispatches(args: {
   db: OrchestrationDb
   dispatchIds: readonly string[]
+  rows?: readonly FederatedDispatchRow[]
 }): HostGroup[] {
   const rows = new Map(
-    args.db.listFederatedDispatchesByIds(args.dispatchIds).map((row) => [row.dispatch_id, row])
+    (args.rows ?? args.db.listFederatedDispatchesByIds(args.dispatchIds)).map((row) => [
+      row.dispatch_id,
+      row
+    ])
   )
   return groupFederatedDispatchRows(args.dispatchIds.flatMap((id) => rows.get(id) ?? []))
 }

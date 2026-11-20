@@ -70,8 +70,7 @@ export abstract class OrcaRuntimeWithAgentTransitions extends OrcaRuntimeWithWin
         ? this.rendererGraphEpoch === 0
         : this.authoritativeWindowId !== HEADLESS_RUNTIME_WINDOW_ID,
     readNotificationSettings: () => this.store?.getSettings().notifications,
-    readWorkspaceLabels: (worktreeId, paneKey) =>
-      this.readTerminalAgentWorkspaceLabels(worktreeId, paneKey),
+    readWorkspaceLabels: (id, pane) => this.readTerminalAgentWorkspaceLabels(id, pane),
     isWorkspaceMuted: (worktreeId) => this.isWorkspaceNotificationMuted(worktreeId),
     readOrchestration: (paneKey) => this.getAgentStatusOrchestrationContextForPaneKey(paneKey),
     readTerminalTitle: (paneKey) => this.getPtyRecordForPaneKey(paneKey)?.lastOscTitle ?? null,
@@ -79,6 +78,7 @@ export abstract class OrcaRuntimeWithAgentTransitions extends OrcaRuntimeWithWin
     translate: (key, fallback) =>
       getRuntimeDesktopSurface().translateNotification?.(key, fallback) ?? fallback,
     dispatch: (event) => this.mobileNotifications.dispatch(event),
+    onClientEvent: (listener, options) => this.onClientEvent(listener, options),
     setTimer: unrefTimer,
     now: Date.now
   })

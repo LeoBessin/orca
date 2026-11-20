@@ -19,6 +19,7 @@ import {
   type CodexAppServerSpawn
 } from './codex-app-server-process-tree-kill'
 import { createProviderRecordReader } from '../../provider-process/provider-record-reader'
+import { oversizedLineError } from './codex-app-server-frame-size-error'
 
 export type CodexAppServerInvocation = {
   command: string
@@ -35,6 +36,7 @@ export type CodexAppServerInvocation = {
   experimentalApi?: boolean
   /** Kill unsupervised plugin trees before stdin EOF; root exit leaves children behind and blocks tree killing. */
   treeKillOnFinish?: boolean
+  allowHost?: boolean
 }
 
 export function isCodexAppServerUnsupportedError(error: unknown): boolean {
@@ -91,6 +93,7 @@ export async function runCodexAppServerSession<T>(
     {
       site: CODEX_APP_SERVER_KILL_SITE,
       inheritedEnv: pairedEnv,
+      allowHost: invocation.allowHost ?? spawnImpl === spawnCodexAppServerProcess,
       spawnImpl: (spec) =>
         spawnImpl(spec.program, [...(spec.args ?? [])], {
           env: spec.env,
@@ -148,7 +151,11 @@ export async function runCodexAppServerSession<T>(
         waiter.resolve(message)
       }
     },
-    onRejected: () => undefined,
+    onRejected: (rejected) => {
+      if (rejected.kind === 'line-too-long') {
+        failPending(oversizedLineError(rejected))
+      }
+    },
     onFatal: failPending
   })
 

@@ -1,10 +1,7 @@
 import type { AgentJournalBotMessageFields } from './agent-journal-bot-message-fields'
 import type { AgentJournalTypedBy } from './agent-journal-typed-by'
 import type { AgentSessionForkedFromMark } from '../conversation-naming/agent-session-fork-name'
-import type {
-  AgentJournalApprovalMatchedAskRule,
-  AgentJournalApprovalSubject
-} from './agent-session-journal-approval-subject'
+import type * as Approval from './agent-session-journal-approval-subject'
 import type { AgentJournalCursor, AgentJournalItemIdentity } from './agent-session-journal-identity'
 import type { AgentJournalTurnScope } from './agent-session-journal-turn-scope'
 import type { AgentSessionProviderContextBoundary } from '../conversation-context/agent-session-provider-context'
@@ -195,11 +192,13 @@ export type AgentJournalApprovalItem = {
   kind: 'approval'
   title: string
   displayName?: string
+  /** The tool being asked about, when the provider names one; readers fall back to the title. */
+  toolName?: string
   description?: string
   decisionReason?: string
   blockedPath?: string
-  matchedAskRule?: AgentJournalApprovalMatchedAskRule
-  subject?: AgentJournalApprovalSubject
+  matchedAskRule?: Approval.AgentJournalApprovalMatchedAskRule
+  subject?: Approval.AgentJournalApprovalSubject
   personOnly?: true
   detail: string | null
   options: AgentJournalPromptOption[]

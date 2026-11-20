@@ -109,7 +109,9 @@ export class ClaudeThreadGoal {
     const next: AgentJournalThreadGoal | null =
       report.kind === 'cleared'
         ? null
-        : current?.status === 'active' && current.objective === report.objective
+        : report.checks !== undefined &&
+            current?.status === 'active' &&
+            current.objective === report.objective
           ? { ...current, checks: Math.max(current.checks ?? 0, report.checks ?? 0) }
           : {
               checks: report.checks ?? 0,

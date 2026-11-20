@@ -1,3 +1,8 @@
+import '../../../../shared/remote-runtime/host-store/environment-store-worker-test-fixture'
+import * as stageWait from '../managed-orcad/runtime-environment-preparation-wait'
+import * as managedTunnel from '../../../managed-server/lifecycle/orcad-managed-tunnel'
+import * as serving from '../../../managed-server/lifecycle/orcad-managed-serving-verify'
+import * as restoreUpdate from '../../../managed-server/lifecycle/orcad-managed-update-on-restore'
 import { getAppEnvironment } from '../../../../shared/app-lifecycle/app-environment'
 import { OrcaRuntimeService } from '../../../runtime/orca-runtime'
 import { createOrchestrationEnvironmentTransport } from './orchestration-environment-transport'
@@ -7,7 +12,6 @@ import { ORCHESTRATION_WORKER_WAKE_OBSERVATION_RUNTIME_CAPABILITY } from '../../
 import type { FederatedDispatchRow } from '../../../runtime/orchestration/db/orchestration-records'
 import * as callQueue from './runtime-environment-call-queue'
 import * as preparation from './runtime-environment-request-preparation'
-import '../../../../shared/remote-runtime/host-store/environment-store-worker-test-fixture'
 import { resetRuntimeEnvironmentStatusOwners } from '../connections/runtime-environment-request-connections'
 vi.mock('electron', () => ({ BrowserWindow: { getAllWindows: () => [] } }))
 import { mkdtempSync, rmSync } from 'node:fs'
@@ -206,6 +210,120 @@ describe('federated read RPC transport routing', () => {
         paths.mockRestore()
         prepare.mockRestore()
         queued.mockRestore()
+      }
+    }
+  )
+  it.each([20, 200])(
+    'detaches %i started callers from one shared host preparation without admitting stale stages',
+    async (count) => {
+      const server = await createSharedControlTestServer({ resultForRequest: () => ({}) })
+      const paired = await addEnvironmentFromPairingCode(userDataPath, {
+        name: 'Started host',
+        pairingCode: encodePairingOffer(server.offer)
+      })
+      let release = () => {}
+      const held = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      const ensure = vi
+        .spyOn(managedTunnel, 'ensureOrcadManagedTunnel')
+        .mockImplementation(async () => {
+          await held
+          return paired
+        })
+      const verify = vi
+        .spyOn(serving, 'verifyOrcadManagedServing')
+        .mockResolvedValue({ state: 'started', boundPort: null })
+      const update = vi.spyOn(restoreUpdate, 'updateManagedOrcadOnRestore').mockReturnValue(null)
+      const redeploy = vi.spyOn(restoreUpdate, 'redeployStoppedManagedOrcad')
+      const wait = vi.spyOn(stageWait, 'waitForRuntimePreparation')
+      const controllers: AbortController[] = []
+      const cancelled: Promise<unknown>[] = []
+      let live: Promise<unknown> | undefined
+      let fresh: Promise<string> | undefined
+      try {
+        for (let start = 0; start < count; start += 8) {
+          const wave = Array.from(
+            { length: Math.min(8, count - start) },
+            () => new AbortController()
+          )
+          controllers.push(...wave)
+          const pending = wave.map((controller) =>
+            callRuntimeEnvironment(
+              userDataPath,
+              paired.id,
+              'orchestration.federationFleetSnapshot',
+              { dispatchIds: ['worker'], workingOnly: true },
+              3_000,
+              undefined,
+              undefined,
+              { signal: controller.signal }
+            ).then(
+              () => 'sent',
+              (error: unknown) => error
+            )
+          )
+          cancelled.push(...pending)
+          await vi.waitFor(
+            () =>
+              expect(wait.mock.calls.filter(([, , stage]) => stage === 'tunnel')).toHaveLength(
+                start + wave.length
+              ),
+            { timeout: 10_000 }
+          )
+          for (const controller of wave) {
+            controller.abort()
+          }
+          expect(
+            (await Promise.all(pending)).every(
+              (result) => result instanceof Error && result.name === 'AbortError'
+            )
+          ).toBe(true)
+        }
+        expect(ensure).toHaveBeenCalledTimes(1)
+        expect(verify).not.toHaveBeenCalled()
+        expect(redeploy).not.toHaveBeenCalled()
+        fresh = callQueue.enqueueRuntimeCall(paired.id, 'terminal.send', async () => 'fresh')
+        expect(await fresh).toBe('fresh')
+        const survivor = new AbortController()
+        controllers.push(survivor)
+        sendRemoteRuntimeRequestOnSocketMock.mockResolvedValue({ ok: true, result: { items: [] } })
+        sendRemoteRuntimeSharedControlRequestMock.mockResolvedValue({
+          ok: true,
+          result: { items: [] }
+        })
+        live = callRuntimeEnvironment(
+          userDataPath,
+          paired.id,
+          'orchestration.federationFleetSnapshot',
+          { dispatchIds: ['live'], workingOnly: true },
+          3_000,
+          undefined,
+          undefined,
+          { signal: survivor.signal }
+        )
+        await vi.waitFor(() =>
+          expect(wait.mock.calls.filter(([, , stage]) => stage === 'tunnel')).toHaveLength(
+            count + 1
+          )
+        )
+        expect(ensure).toHaveBeenCalledTimes(1)
+        release()
+        await expect(live).resolves.toMatchObject({ ok: true, result: { items: [] } })
+        expect(verify).toHaveBeenCalledTimes(1)
+        expect(update).toHaveBeenCalledTimes(1)
+        expect(redeploy).not.toHaveBeenCalled()
+      } finally {
+        for (const controller of controllers) {
+          controller.abort()
+        }
+        release()
+        await Promise.allSettled([...cancelled, ...(live ? [live] : []), ...(fresh ? [fresh] : [])])
+        ensure.mockRestore()
+        verify.mockRestore()
+        update.mockRestore()
+        redeploy.mockRestore()
+        wait.mockRestore()
       }
     }
   )

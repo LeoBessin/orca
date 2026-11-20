@@ -83,7 +83,11 @@ export async function canPromiseHelperFinishReport(
     return false
   }
   await prepareCoordinatorMailCount(db, dispatch.id, current)
-  const count = preparedCoordinatorMailCount(db, dispatch.id)
+  let count = preparedCoordinatorMailCount(db, dispatch.id)
+  if (count === undefined && current() && !db.db.isTransaction) {
+    await prepareCoordinatorMailCount(db, dispatch.id, current)
+    count = preparedCoordinatorMailCount(db, dispatch.id)
+  }
   return (
     current() &&
     count !== undefined &&

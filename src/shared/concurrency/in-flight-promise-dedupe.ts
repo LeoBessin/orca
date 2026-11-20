@@ -19,7 +19,8 @@ export class InFlightPromiseDedupe<T> {
 
   constructor(
     private readonly maxInFlightMs = 30_000,
-    maxEntries = MAX_IN_FLIGHT_PROMISE_DEDUPE_ENTRIES
+    maxEntries = MAX_IN_FLIGHT_PROMISE_DEDUPE_ENTRIES,
+    private readonly overloadError?: () => Error
   ) {
     this.maxEntries = Number.isFinite(maxEntries)
       ? Math.min(MAX_IN_FLIGHT_PROMISE_DEDUPE_ENTRIES, Math.max(0, Math.floor(maxEntries)))
@@ -33,6 +34,9 @@ export class InFlightPromiseDedupe<T> {
       return existing.promise
     }
     if (this.entries.size >= this.maxEntries) {
+      if (this.overloadError) {
+        return Promise.reject(this.overloadError())
+      }
       // Do not evict active work and duplicate it; run overflow without retaining extra entries.
       return Promise.resolve().then(load)
     }

@@ -1,3 +1,5 @@
+import { throwIfSignalAborted } from '../../../../shared/concurrency/abort-signal-reason'
+import { waitForRuntimePreparation } from '../managed-orcad/runtime-environment-preparation-wait'
 import type * as Rpc from '../../../../shared/remote-runtime/rpc/runtime-rpc-envelope'
 import type { KnownRuntimeEnvironment } from '../../../../shared/remote-runtime/host-catalog/runtime-environments'
 import {
@@ -27,9 +29,16 @@ export async function prepareFencedRuntimeRequest(
   | { failure: Rpc.RuntimeRpcResponse<never> }
   | { failure: null; environment: KnownRuntimeEnvironment; expected: Expected }
 > {
+  throwIfSignalAborted(signal)
   // A stale caller is refused before its request can wake (and re-pair) a VM.
   const stale = runtimeEnvironmentRevisionFailure(
-    await resolveEnvironment(userDataPath, environmentId),
+    await waitForRuntimePreparation(
+      userDataPath,
+      environmentId,
+      'resolve',
+      () => resolveEnvironment(userDataPath, environmentId),
+      signal
+    ),
     expected.pairingRevision,
     method,
     expected.runtimeId
@@ -37,6 +46,7 @@ export async function prepareFencedRuntimeRequest(
   if (stale) {
     return { failure: stale }
   }
+  throwIfSignalAborted(signal)
   const prepared = await prepareManagedRuntimeRequest(
     userDataPath,
     environmentId,
@@ -44,6 +54,7 @@ export async function prepareFencedRuntimeRequest(
     method,
     signal
   )
+  throwIfSignalAborted(signal)
   const { environment, wokenPairingRevision: woken } = prepared
   const failure =
     woken === null

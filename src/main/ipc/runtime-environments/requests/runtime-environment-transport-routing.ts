@@ -1,3 +1,4 @@
+import { waitForRuntimePreparation } from '../managed-orcad/runtime-environment-preparation-wait'
 import {
   markEnvironmentUsedFromResponse,
   shouldUseCachedRequestConnection
@@ -72,7 +73,13 @@ export async function callRuntimeEnvironment(
       )
     )
   }
-  const environment = await resolveEnvironment(userDataPath, selector)
+  const environment = await waitForRuntimePreparation(
+    userDataPath,
+    selector,
+    'resolve',
+    () => resolveEnvironment(userDataPath, selector),
+    options?.signal
+  )
   // Connect failures reject; retain the dispatched endpoint for hints because queued re-pairing can change it.
   let endpoint = getPreferredPairedRuntimeConnection(environment).endpoint
   try {

@@ -1,3 +1,5 @@
+import { throwIfSignalAborted } from '../../../../shared/concurrency/abort-signal-reason'
+import { waitForRuntimePreparation } from './runtime-environment-preparation-wait'
 import { resolveEnvironment } from '../../../../shared/remote-runtime/host-store/runtime-environment-store'
 import {
   getOrcadSshDeployment,
@@ -69,7 +71,13 @@ export async function prepareManagedRuntimeRequest(
   method?: string,
   signal?: AbortSignal
 ): Promise<PreparedManagedRuntimeRequest> {
-  const environment = await resolveEnvironment(userDataPath, selector)
+  const environment = await waitForRuntimePreparation(
+    userDataPath,
+    selector,
+    'resolve',
+    () => resolveEnvironment(userDataPath, selector),
+    signal
+  )
   // Enforce the WSL gate for calls, subscriptions and status probes.
   assertWslHostReachable(environment)
   const vm = await prepareRecipeVm(
@@ -79,17 +87,30 @@ export async function prepareManagedRuntimeRequest(
     preparation?.recipeVmHoldMs,
     signal
   )
+  throwIfSignalAborted(signal)
   const host = classifyRuntimeEnvironmentHost(environment)
   switch (host.kind) {
     case 'wsl':
-      await prepareWslHostForCall(environment, preparation)
+      await waitForRuntimePreparation(
+        userDataPath,
+        environment.id,
+        `wsl:${preparation?.wslStart ?? 'default'}`,
+        () => prepareWslHostForCall(environment, preparation),
+        signal
+      )
       break
     case 'network':
     case 'ssh':
-      await prepareNetworkServerForCall(userDataPath, environment)
+      await prepareNetworkServerForCall(userDataPath, environment, signal)
       break
   }
-  const prepared = await resolveEnvironment(userDataPath, environment.id)
+  const prepared = await waitForRuntimePreparation(
+    userDataPath,
+    environment.id,
+    'resolve',
+    () => resolveEnvironment(userDataPath, environment.id),
+    signal
+  )
   return {
     environment: prepared,
     before: environment,
@@ -138,12 +159,18 @@ async function prepareWslHostForCall(
 
 async function prepareNetworkServerForCall(
   userDataPath: string,
-  environment: KnownRuntimeEnvironment
+  environment: KnownRuntimeEnvironment,
+  signal?: AbortSignal
 ): Promise<void> {
-  await ensureOrcadManagedTunnel(userDataPath, environment.id)
+  throwIfSignalAborted(signal)
+  const step = <T>(stage: string, work: () => Promise<T>) =>
+    waitForRuntimePreparation(userDataPath, environment.id, stage, work, signal)
+  await step('tunnel', () => ensureOrcadManagedTunnel(userDataPath, environment.id))
   restoreForwardsOverTunnel(environment)
   // Calls must restart managed servers stopped by idle timeout, kill or host reboot.
-  const serving = await verifyOrcadManagedServing(userDataPath, environment.id)
+  const serving = await step('verify', () =>
+    verifyOrcadManagedServing(userDataPath, environment.id)
+  )
   const crashLoop =
     serving.state === 'unverifiable' ? getManagedOrcadCrashLoopBrake().detail(environment.id) : null
   if (crashLoop) {
@@ -160,16 +187,17 @@ async function prepareNetworkServerForCall(
   })
   if (isStoppedElsewhere(serving)) {
     // Await redeployment: another desktop can stop the server mid-session.
-    if (await redeployStoppedManagedOrcad(environment.id, createDeps)) {
+    if (await step('redeploy', () => redeployStoppedManagedOrcad(environment.id, createDeps))) {
       const targetId = getOrcadSshDeployment(environment)?.sshTargetId
       if (targetId) {
-        await forgetLaunchSessionVerdictLazily(targetId)
+        await step('forget-launch', () => forgetLaunchSessionVerdictLazily(targetId))
       }
       // Redeployment may change the server port behind the existing forward.
-      await rebuildOrcadManagedTunnel(userDataPath, environment.id)
+      await step('rebuild', () => rebuildOrcadManagedTunnel(userDataPath, environment.id))
     }
   } else {
     // Auto-restored hosts may never get an SSH connect to trigger their update.
+    throwIfSignalAborted(signal)
     const update = updateManagedOrcadOnRestore(environment.id, createDeps)
     const targetId = getOrcadSshDeployment(environment)?.sshTargetId
     if (targetId) {

@@ -60,10 +60,11 @@ import { WorkerAutoReleaseActivity } from '../../orchestration/terminal-authorit
 import { nativeChatIdleStopMs } from '../../../../shared/native-chat/settings/native-chat-idle-stop'
 import { prWatchWorkspaceSources } from '../../agent-session/lifecycle/pr-watch-workspace-sources'
 import { startPRWatchRuntime } from '../../agent-session/lifecycle/pr-watch-runtime'
+type WakeArgs = [string, (() => boolean)?, AbortSignal?]
 const DEFAULT_WORKTREE_PS_LIMIT = 200
 
 export abstract class OrcaRuntimeWithGetWorktreePs extends RuntimeChatWorkerEvents {
-  abstract structuredSessionHasPendingWake(...args: [string, (() => boolean)?]): Promise<boolean>
+  abstract structuredSessionHasPendingWake(...args: WakeArgs): Promise<boolean>
 
   protected readonly workerAutoReleaseActivity = new WorkerAutoReleaseActivity(
     () => this._orchestrationDb
@@ -240,6 +241,7 @@ export abstract class OrcaRuntimeWithGetWorktreePs extends RuntimeChatWorkerEven
   /** Defer host creation until profile paths are final and chat is used; reuse an admission-opened record store. */
   async ensureStructuredAgentSessionHost(): Promise<void> {
     const logger = createStructuredAgentSessionLogger()
+    const orchestration = () => this.getOrchestrationDbIfAvailable?.() ?? null
     const nameChat = createStructuredChatNamingHandler(
       structuredChatNamingDeps(
         () => this.requireStore(),
@@ -251,8 +253,7 @@ export abstract class OrcaRuntimeWithGetWorktreePs extends RuntimeChatWorkerEven
           getAgentEnvResolvers: () => this.getCommitMessageAgentEnvironmentResolvers(),
           resolveNamingEnvironment: (agent) =>
             resolveHostStructuredAgentLaunchEnvironment(agent, this.requireStore().getSettings()),
-          workerTaskTitle: (record) =>
-            structuredWorkerOpenTaskTitle(this.getOrchestrationDbIfAvailable?.() ?? null, record),
+          workerTaskTitle: (r) => structuredWorkerOpenTaskTitle(orchestration(), r),
           retitleOpenTab: (workspaceId, sessionId) =>
             this.refreshStructuredConversationTabTitle(workspaceId, sessionId)
         },
@@ -315,8 +316,7 @@ export abstract class OrcaRuntimeWithGetWorktreePs extends RuntimeChatWorkerEven
         }),
       hasPendingOrchestrationWake: this.structuredSessionHasPendingWake.bind(this),
       // Re-read dispatch ownership each sweep; absence of a database cannot keep the worker alive.
-      hasOpenDispatch: (record) =>
-        structuredWorkerOwesWork(this.getOrchestrationDbIfAvailable?.() ?? null, record)
+      hasOpenDispatch: (r) => structuredWorkerOwesWork(orchestration(), r)
     }).then(() => this.backfillBotBackgroundChats())
     // Starts watches not yet running once the host has served: a failed first start or a teardown retries here.
     this.startPullRequestWatches()

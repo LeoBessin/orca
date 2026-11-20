@@ -15,6 +15,7 @@ import type { RpcContext } from '../../../core'
 import { parseBotAddress } from '../../../../../../shared/bot-roster'
 import { recordReceiptBeforeNudge } from './mutation-replay-nudge'
 import type { SendParams } from './send-params'
+import { uploadPeerMailFiles } from './peer-mail-files'
 import { PeerMailMessageType } from '../../../../../../shared/rpc-contract/orchestration/orchestration-peer-mail-params'
 
 const NOTHING_SENT = { effectsApplied: false } as const
@@ -95,6 +96,7 @@ export async function sendPeerMail(args: {
     localPaneKey: caller.paneKey
   })
   const id = peerMailMessageId(args.orchestrationMutation)
+  const attachments = await uploadPeerMailFiles(runtime, server, params)
   await deliverPeerMail(runtime, server, conversation, {
     id,
     to,
@@ -106,6 +108,7 @@ export async function sendPeerMail(args: {
     threadId: params.threadId,
     chat: params.chat,
     item: params.item,
+    attachments,
     sender: peerMailSender(runtime, caller.address)
   })
   return recordReceiptBeforeNudge(

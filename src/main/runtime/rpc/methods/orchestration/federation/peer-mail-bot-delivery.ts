@@ -67,6 +67,7 @@ export async function deliverPeerMailToBot(
           chat: params.chat,
           item: params.item
         },
+        attachments: params.attachments,
         from: params.senderLabel,
         to: params.to,
         sender,

@@ -144,6 +144,7 @@ export async function deliverPeerMail(
     threadId?: string
     chat?: string
     item?: string
+    attachments?: readonly string[]
     sender: PeerMailSender
   }
 ): Promise<void> {
@@ -162,6 +163,7 @@ export async function deliverPeerMail(
       ...(message.threadId ? { threadId: message.threadId } : {}),
       ...(message.chat ? { chat: message.chat } : {}),
       ...(message.item ? { item: message.item } : {}),
+      ...(message.attachments?.length ? { attachments: message.attachments } : {}),
       sender: message.sender
     },
     DELIVER_TIMEOUT_MS,

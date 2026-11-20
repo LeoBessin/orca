@@ -3,6 +3,11 @@ import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
 import type SyncDatabase from '../../sqlite/sync-database'
 import type { SqliteRow } from '../../sqlite/sqlite-statement'
 import { reportSessionSearchBackgroundError, traceSessionSearch } from '../session-search-trace'
+import {
+  compactSessionSearchIndex,
+  recordSessionSearchDeletes,
+  sessionSearchIndexCompactionDue
+} from './session-search-index-compaction'
 
 const SCANNED_KEY = 'tool_purge_scanned_rowid'
 const FLOOR_KEY = 'tool_purge_floor_rowid'
@@ -112,8 +117,8 @@ export class SessionSearchToolPurge {
         if (cursor > start && !this.closed()) {
           writeScannedMark(this.db, cursor)
         }
-        if (changed && !this.closed()) {
-          await this.compact()
+        if ((changed || sessionSearchIndexCompactionDue(this.db)) && !this.closed()) {
+          await compactSessionSearchIndex(this.db, this.closed)
         }
       }
     } catch (error) {
@@ -137,6 +142,7 @@ export class SessionSearchToolPurge {
           deleted++
         }
       }
+      recordSessionSearchDeletes(this.db, deleted)
       if (deleted) {
         this.db.exec(`INSERT INTO meta(key, value) VALUES ('index_generation', '1')
           ON CONFLICT(key) DO UPDATE SET value = CAST(value AS INTEGER) + 1`)
@@ -147,34 +153,6 @@ export class SessionSearchToolPurge {
     } catch (error) {
       this.db.exec('ROLLBACK')
       throw error
-    }
-  }
-
-  private async compact(): Promise<void> {
-    const changes = this.db.prepare('SELECT total_changes() AS n')
-    const merge = this.db.prepare("INSERT INTO messages_fts(messages_fts, rank) VALUES('merge', ?)")
-    // Why: negative starts a two-segment merge; positive steps continue it within the page budget.
-    let pages = -64
-    while (!this.closed()) {
-      const before = Number(changes.get()!.n)
-      traceSessionSearch('merge', () => merge.run(pages))
-      const done = Number(changes.get()!.n) - before < 2
-      await yieldToEventLoop()
-      if (done) {
-        break
-      }
-      pages = 64
-    }
-    // Reclaim pages freed by merging only after the final merge step has yielded.
-    let free = this.closed() ? 0 : Number(this.db.pragma('freelist_count', { simple: true }))
-    while (free > 0 && !this.closed()) {
-      traceSessionSearch('vacuum', () => this.db.pragma('incremental_vacuum(2000)'))
-      const remaining = Number(this.db.pragma('freelist_count', { simple: true }))
-      await yieldToEventLoop()
-      if (remaining >= free) {
-        break
-      }
-      free = remaining
     }
   }
 }

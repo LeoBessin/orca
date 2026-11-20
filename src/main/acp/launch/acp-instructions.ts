@@ -1,7 +1,7 @@
 // ACP has no standard channel for standing instructions; each agent takes them its own way.
 
 import { randomUUID } from 'node:crypto'
-import { mkdir, rename, rm, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, readdir, rename, rm, rmdir, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
 import { nativeChatScratchFolderName } from '../../native-chat/conversation-files/native-chat-scratch-folder'
@@ -10,6 +10,11 @@ import type { AcpLaunchSpec } from './acp-launch-contract'
 import type { InitializeResponse } from '../generated/acp-protocol.generated'
 import { acpAgentName } from '../session/acp-structured-agent-definitions'
 import { placeCursorOpeningRule } from '../../cursor/cursor-opening-rule'
+import {
+  openCodeSourceConfigDirectory,
+  openCodeTakesConfigDirInstructions,
+  writeOpenCodeInstructionsConfigDir
+} from '../../opencode/opencode-instructions-config-dir'
 
 /** What a launch adds so the agent's own system prompt carries the instructions. */
 export type AcpInstructionsLaunch = {
@@ -30,8 +35,12 @@ export type AcpInstructionsDelivery = (input: {
   text: string
   /** Writes the text to a file only this host's user can read, and returns its path. */
   file: () => Promise<string>
+  /** Makes a new, empty folder only this host's user can read, for this launch, and returns its path. */
+  folder: () => Promise<string>
   /** What the child will see, inherited values included. */
   env: Readonly<Record<string, string>>
+  /** The launched program's version; null when its check could not tell. */
+  version: string | null
 }) => Promise<AcpInstructionsLaunch | null>
 
 // Grok keeps them with the session, so a reopened conversation keeps the preamble it began with.
@@ -55,8 +64,20 @@ export const deliverAntigravityInstructions: AcpInstructionsDelivery = async ({ 
   takesSessionMeta: antigravityTakesSystemPrompt
 })
 
-/** Appended to the user's own inline instructions, never replacing them. */
-export const deliverOpenCodeInstructions: AcpInstructionsDelivery = async ({ file, env }) => {
+/** 1.x: appended to the user's own inline instructions, never replacing them. 2.x ignores those, so
+ *  they follow the user's own global AGENTS.md in a config folder that links the rest of theirs. */
+export const deliverOpenCodeInstructions: AcpInstructionsDelivery = async ({
+  text,
+  file,
+  folder,
+  env,
+  version
+}): Promise<AcpInstructionsLaunch | null> => {
+  if (openCodeTakesConfigDirInstructions(version)) {
+    const configDir = await folder()
+    await writeOpenCodeInstructionsConfigDir(configDir, openCodeSourceConfigDirectory(env), text)
+    return { env: { OPENCODE_CONFIG_DIR: configDir } }
+  }
   const content = withOpenCodeInstructionsFile(env.OPENCODE_CONFIG_CONTENT, await file())
   return content === null ? null : { env: { OPENCODE_CONFIG_CONTENT: content } }
 }
@@ -96,12 +117,53 @@ export async function writeAcpInstructionsFile(
   return path
 }
 
+/** Removes a tree, unlinking links and junctions rather than descending into them (#1083). */
+async function removeTreeKeepingLinkTargets(path: string): Promise<void> {
+  const stats = await lstat(path).catch(() => null)
+  if (!stats) {
+    return
+  }
+  if (stats.isSymbolicLink() || !stats.isDirectory()) {
+    await unlink(path).catch(() => undefined)
+    return
+  }
+  for (const name of await readdir(path).catch(() => [])) {
+    await removeTreeKeepingLinkTargets(join(path, name))
+  }
+  await rmdir(path).catch(() => undefined)
+}
+
+const clearedFolders = new Map<string, Promise<void>>()
+
+/** A new folder per launch, so a child still running from an earlier one keeps reading its own.
+ *  Folders may link into the user's files, so clearing never follows a link (#1083). */
+export async function makeAcpInstructionsFolder(
+  dataDirectory: string,
+  sessionId: string
+): Promise<string> {
+  const root = join(dataDirectory, 'acp-instructions-folders')
+  let clearing = clearedFolders.get(root)
+  if (!clearing) {
+    clearing = removeTreeKeepingLinkTargets(root)
+    clearedFolders.set(root, clearing)
+  }
+  await clearing
+  const path = join(root, `${nativeChatScratchFolderName(sessionId)}-${randomUUID()}`)
+  await mkdir(path, { recursive: true, mode: 0o700 })
+  return path
+}
+
 /** Null for a session without instructions; throws when the agent cannot take them, so the session
  *  never starts without them. */
 export async function acpLaunchInstructions(
   spec: Pick<AcpLaunchSpec, 'agent' | 'instructions'>,
   dataDirectory: string,
-  input: { sessionId: string; text: string | null; env: Readonly<Record<string, string>> }
+  input: {
+    sessionId: string
+    text: string | null
+    env: Readonly<Record<string, string>>
+    version?: string | null
+  }
 ): Promise<AcpInstructionsLaunch | null> {
   const { text } = input
   if (!text) {
@@ -110,7 +172,9 @@ export async function acpLaunchInstructions(
   const delivered = await spec.instructions?.({
     text,
     env: input.env,
-    file: () => writeAcpInstructionsFile(dataDirectory, input.sessionId, text)
+    version: input.version ?? null,
+    file: () => writeAcpInstructionsFile(dataDirectory, input.sessionId, text),
+    folder: () => makeAcpInstructionsFolder(dataDirectory, input.sessionId)
   })
   if (!delivered) {
     throw new Error(

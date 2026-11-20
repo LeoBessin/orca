@@ -1,4 +1,5 @@
 import { SessionSearchToolPurge } from '../storage/session-search-tool-purge'
+import { afterQuietDeletes } from '../storage/session-search-index-compaction'
 import { readIndexGeneration } from '../storage/session-search-index-generation'
 import { parentPort } from 'node:worker_threads'
 import SyncDatabase from '../../sqlite/sync-database'
@@ -276,14 +277,7 @@ async function execute({ id, command: c }: SearchWorkerRequest): Promise<SearchW
     generation: readIndexGeneration(store.connection)
   }
 }
-// Deletes leave dead index rows; the purge pass merges them out once indexing has been quiet a while.
-const COMPACTION_IDLE_MS = 60_000
-let compactionTimer: NodeJS.Timeout | undefined
-function requestIndexCompaction(): void {
-  clearTimeout(compactionTimer)
-  compactionTimer = setTimeout(() => void toolPurge?.request(), COMPACTION_IDLE_MS)
-  compactionTimer.unref()
-}
+const requestIndexCompaction = afterQuietDeletes(() => void toolPurge?.request())
 const handlePaths = new Map<number, string>()
 let lane = Promise.resolve()
 parentPort?.on('message', (request: SearchWorkerRequest) => {

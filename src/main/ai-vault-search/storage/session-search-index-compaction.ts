@@ -12,6 +12,19 @@ const RECLAIM_PAGES_PER_STEP = 128
 const WORK_BEFORE_REST_MS = 25
 const REST_PER_WORK = 9
 
+// Merging waits for indexing to go quiet, so a burst of reindexing triggers one pass.
+const QUIET_AFTER_DELETES_MS = 60_000
+
+/** Returns a notifier that calls `run` once deletes have stopped for a minute. */
+export function afterQuietDeletes(run: () => void): () => void {
+  let timer: NodeJS.Timeout | undefined
+  return () => {
+    clearTimeout(timer)
+    timer = setTimeout(run, QUIET_AFTER_DELETES_MS)
+    timer.unref()
+  }
+}
+
 /** Counts index rows deleted since the last full merge, in the caller's transaction. */
 export function recordSessionSearchDeletes(db: SyncDatabase, deleted: number): void {
   if (deleted > 0) {

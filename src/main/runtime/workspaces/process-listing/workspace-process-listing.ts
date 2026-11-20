@@ -1,3 +1,4 @@
+import { crewChatStatusChange } from '../../orchestration/crew/crew-changes'
 import { getRepoHostIdentityForParts } from '../../../../shared/repository/repo-host-identity'
 import { createRepoRowExecutionHostLookup } from '../../../../shared/execution-host/worktree-execution-host-resolution'
 import { resolveWorktreeHostRouting } from '../catalog/worktree-launch-host-repo'
@@ -61,7 +62,6 @@ import { nativeChatIdleStopMs } from '../../../../shared/native-chat/settings/na
 import { prWatchWorkspaceSources } from '../../agent-session/lifecycle/pr-watch-workspace-sources'
 import { startPRWatchRuntime } from '../../agent-session/lifecycle/pr-watch-runtime'
 type WakeArgs = [string, (() => boolean)?, AbortSignal?]
-const DEFAULT_WORKTREE_PS_LIMIT = 200
 
 export abstract class OrcaRuntimeWithGetWorktreePs extends RuntimeChatWorkerEvents {
   abstract structuredSessionHasPendingWake(...args: WakeArgs): Promise<boolean>
@@ -76,7 +76,7 @@ export abstract class OrcaRuntimeWithGetWorktreePs extends RuntimeChatWorkerEven
   }
 
   async getWorktreePs(
-    limit = DEFAULT_WORKTREE_PS_LIMIT,
+    limit = 200,
     sourceDefaultsSupported = true,
     includeAgentWait = false,
     worktreeId?: string
@@ -284,7 +284,7 @@ export abstract class OrcaRuntimeWithGetWorktreePs extends RuntimeChatWorkerEven
       onIdleProviderDeath: (death) => this.onStructuredIdleProviderDeathForMail(death),
       // Structured chat has no CLI hooks; this projection drives first-work renaming.
       onSessionStatusChanged: (summary, options) => {
-        this.crewChanges.notify(new Set(['status', 'names']))
+        this.crewChanges.notify(crewChatStatusChange(summary.sessionId))
         this.onStructuredSessionStatusForMail(summary)
         this.workerAutoReleaseActivity.observeChat(summary)
         nameChat(summary, options)

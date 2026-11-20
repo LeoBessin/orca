@@ -1,4 +1,5 @@
 import { workerHasPendingHelperWake } from '../orchestration/workers/reports/worker-helper-pending-wake'
+import { crewStatusRowChange } from '../orchestration/crew/crew-changes'
 import type { PairedDeviceAccountLookup } from '../rpc/server/pairing/device-entry'
 import { worktreesUnderHomes } from '../../bots/bot-handed-workspaces'
 import { forgetPairedReads } from '../../bots/bot-paired-handed-agents'
@@ -281,10 +282,8 @@ export abstract class OrcaRuntimeWithAgentTransitions extends OrcaRuntimeWithWin
         getStructuredAgentSessionHost()?.readStatusSummary(structured.sessionId)?.status
       )
     }
-    return (
-      resource.pane_key !== null &&
-      terminalPhaseInTurn(this.agentTransitions.phaseOf(resource.pane_key))
-    )
+    const pane = resource.pane_key
+    return pane !== null && terminalPhaseInTurn(this.agentTransitions.phaseOf(pane))
   }
 
   /** Attach after higher layers subscribe; also drive generated tab titles. */
@@ -292,8 +291,9 @@ export abstract class OrcaRuntimeWithAgentTransitions extends OrcaRuntimeWithWin
     // Attach connector watches at hook-store startup, before any connector call.
     this.externalConversations.current()
     const detachTransitions = this.agentTransitions.attach(store)
-    const detachCrew = store.subscribeStatusRowMutations(() =>
-      this.crewChanges.notify(new Set(['status', 'names']))
+    // A row names its pane: a crew that shows neither pane reads nothing for it.
+    const detachCrew = store.subscribeStatusRowMutations((mutation) =>
+      this.crewChanges.notify(crewStatusRowChange(mutation))
     )
     this.crewChanges.notify(new Set(['status', 'names']))
     const detachRows = store.subscribeStatusRowMutations(() => this.worktreeRowsChanges?.changed())

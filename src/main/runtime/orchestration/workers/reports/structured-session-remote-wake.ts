@@ -111,6 +111,7 @@ export async function readRemoteWorkingDispatches(
             eligible(item.dispatchId)
           ) {
             working.add(item.dispatchId)
+            controller.abort()
             found?.()
             return
           }

@@ -11,12 +11,19 @@ import { bindShellProbeLifetime } from './shell-probe-lifetime'
 
 const START_MARKER = '__ORCA_LOGIN_SHELL_ENV_START__'
 const END_MARKER = '__ORCA_LOGIN_SHELL_ENV_END__'
+const ALIASES_START_MARKER = '__ORCA_LOGIN_SHELL_ALIASES_START__'
+const ALIASES_END_MARKER = '__ORCA_LOGIN_SHELL_ALIASES_END__'
 const SPAWN_TIMEOUT_MS = 5000
 
 export type LoginShellEnvironmentCapture = {
   status: 'captured' | 'fallback'
   env: NodeJS.ProcessEnv
+  /** The shell's aliases by name, as an interactive terminal of it expands them. */
+  aliases?: ReadonlyMap<string, string>
 }
+
+/** One shell run's output: its environment and, for shells Orca reads them from, its aliases. */
+export type LoginShellRead = { env: NodeJS.ProcessEnv; aliases?: ReadonlyMap<string, string> }
 
 type CachedEnvironment = {
   /** The last good result: a fallback stays only until a capture replaces it. */
@@ -31,6 +38,7 @@ const environmentCache = new Map<string, CachedEnvironment>()
 const MAX_CACHED_ENVIRONMENTS = 8
 /** Moves whenever a cached capture is replaced or dropped. */
 let cacheRevision = 0
+let hostAliases: ReadonlyMap<string, string> | undefined
 
 /** Lets a reader of the cached capture tell, synchronously, that what it read is still current. */
 export function loginShellEnvironmentRevision(): number {
@@ -69,11 +77,22 @@ const POWERSHELL_ENVIRONMENT_DUMP =
   `[Console]::Write(($values | ConvertTo-Json -Compress)); ` +
   `[Console]::Write('${END_MARKER}')`
 
+// Printed after the environment, so a shell that fails these lines still yields its environment.
+const ALIAS_DUMPS: Readonly<Record<string, string>> = {
+  zsh: 'for __orca_k __orca_v in "${(@kv)aliases}"; do printf \'%s\\0%s\\0\' "$__orca_k" "$__orca_v"; done',
+  bash: 'for __orca_k in "${!BASH_ALIASES[@]}"; do printf \'%s\\0%s\\0\' "$__orca_k" "${BASH_ALIASES[$__orca_k]}"; done'
+}
+
 function shellProbe(shell: string): string[] | null {
   if (process.platform !== 'win32') {
-    const command =
-      `printf '\\0${START_MARKER}\\0'; /usr/bin/env -0; ` + `printf '\\0${END_MARKER}\\0'`
-    return ['-ilc', command]
+    const dump = ALIAS_DUMPS[posixBasename(shell)]
+    const aliases = dump
+      ? `; printf '\\0${ALIASES_START_MARKER}\\0'; ${dump}; printf '\\0${ALIASES_END_MARKER}\\0'`
+      : ''
+    return [
+      '-ilc',
+      `printf '\\0${START_MARKER}\\0'; /usr/bin/env -0; printf '\\0${END_MARKER}\\0'${aliases}`
+    ]
   }
   if (resolveWindowsShellStartupFamily(shell) === 'posix') {
     // Git Bash's own env holds MSYS paths (/c/..., TEMP=/tmp); a native child sees the converted values native agents get.
@@ -85,6 +104,34 @@ function shellProbe(shell: string): string[] | null {
     return null
   }
   return ['-NoLogo', '-Command', POWERSHELL_ENVIRONMENT_DUMP]
+}
+
+function posixBasename(shell: string): string {
+  return shell.slice(shell.lastIndexOf('/') + 1).replace(/^-/, '')
+}
+
+/** NUL-separated name/value pairs between the alias markers; absent when the shell printed none. */
+function parsePosixAliases(output: Buffer): ReadonlyMap<string, string> | undefined {
+  const startMarker = Buffer.from(`\0${ALIASES_START_MARKER}\0`)
+  const start = output.indexOf(startMarker)
+  const end = output.indexOf(
+    Buffer.from(`\0${ALIASES_END_MARKER}\0`),
+    start + startMarker.length - 1
+  )
+  if (start === -1 || end === -1) {
+    return undefined
+  }
+  const fields = output
+    .subarray(start + startMarker.length, end)
+    .toString('utf8')
+    .split('\0')
+  const aliases = new Map<string, string>()
+  for (let index = 0; index + 1 < fields.length; index += 2) {
+    if (fields[index]) {
+      aliases.set(fields[index], fields[index + 1])
+    }
+  }
+  return aliases
 }
 
 function parsePosixEnvironment(output: Buffer): NodeJS.ProcessEnv | null {
@@ -130,7 +177,7 @@ function spawnShellAndReadEnvironment(
   shell: string,
   env: NodeJS.ProcessEnv,
   timeoutMs = SPAWN_TIMEOUT_MS
-): Promise<NodeJS.ProcessEnv | null> {
+): Promise<LoginShellRead | null> {
   const args = shellProbe(shell)
   if (!args) {
     return Promise.resolve(null)
@@ -140,7 +187,7 @@ function spawnShellAndReadEnvironment(
     const chunks: Buffer[] = []
     const child = spawnProcess({ program: shell, args, env, detached: shellProbeDetached() })
     const lifetime = bindShellProbeLifetime(child)
-    const finish = (value: NodeJS.ProcessEnv | null): void => {
+    const finish = (value: LoginShellRead | null): void => {
       if (settled) {
         return
       }
@@ -162,11 +209,14 @@ function spawnShellAndReadEnvironment(
     child.on('error', () => finish(null))
     child.on('close', () => {
       const output = Buffer.concat(chunks)
-      finish(
-        process.platform === 'win32'
-          ? parsePowerShellEnvironment(output)
-          : parsePosixEnvironment(output)
-      )
+      if (process.platform === 'win32') {
+        const environment = parsePowerShellEnvironment(output)
+        finish(environment && { env: environment })
+        return
+      }
+      const environment = parsePosixEnvironment(output)
+      const aliases = parsePosixAliases(output)
+      finish(environment && { env: environment, ...(aliases ? { aliases } : {}) })
     })
   })
 }
@@ -184,7 +234,7 @@ export type ResolveLoginShellEnvironmentOptions = {
   env?: NodeJS.ProcessEnv
   /** Per-shell probe budget; defaults to 5 s. */
   timeoutMs?: number
-  spawner?: (shell: string, env: NodeJS.ProcessEnv) => Promise<NodeJS.ProcessEnv | null>
+  spawner?: (shell: string, env: NodeJS.ProcessEnv) => Promise<LoginShellRead | null>
 }
 
 /** Capture terminal-shell environment or process fallback; cache by shell/environment and let newest-started completed runs win. */
@@ -206,6 +256,7 @@ export function captureLoginShellEnvironment(
           .update(JSON.stringify(Object.entries(env).sort(([a], [b]) => a.localeCompare(b))))
           .digest('hex')
   const entry = cachedEnvironment(`${shell}\0${fallback ?? ''}\0${envKey}`)
+  const servesHost = options.shellOverride === undefined && options.env === undefined
   const run = (): Promise<LoginShellEnvironmentCapture> => {
     const startedAt = Date.now()
     const spawner =
@@ -215,7 +266,7 @@ export function captureLoginShellEnvironment(
     const capture = spawner(shell, env)
       .then(async (environment): Promise<LoginShellEnvironmentCapture> => {
         const captured = environment ?? (fallback ? await spawner(fallback, env) : null)
-        return captured ? { status: 'captured', env: captured } : fellBack
+        return captured ? { status: 'captured', ...captured } : fellBack
       })
       .catch(() => fellBack)
     entry.running = { capture, startedAt }
@@ -231,6 +282,9 @@ export function captureLoginShellEnvironment(
         entry.last = result
         entry.lastStartedAt = startedAt
         cacheRevision++
+        if (servesHost) {
+          hostAliases = result.aliases
+        }
       }
     })
     return capture
@@ -265,7 +319,13 @@ export function resolveLoginShellEnvironment(
   return captureLoginShellEnvironment(options).then((capture) => capture.env)
 }
 
+/** Aliases of the host's own terminal shell from its latest capture; synchronous, starts nothing. */
+export function loginShellAliases(): ReadonlyMap<string, string> | undefined {
+  return hostAliases
+}
+
 export function resetLoginShellEnvironmentCacheForTests(): void {
+  hostAliases = undefined
   environmentCache.clear()
   cacheRevision++
 }

@@ -1,22 +1,23 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import {
   resetLoginShellEnvironmentCacheForTests,
-  resolveLoginShellEnvironment
+  resolveLoginShellEnvironment,
+  type LoginShellRead
 } from './login-shell-environment'
 
 afterEach(resetLoginShellEnvironmentCacheForTests)
 
-type Spawner = (shell: string, env: NodeJS.ProcessEnv) => Promise<NodeJS.ProcessEnv | null>
+type Spawner = (shell: string, env: NodeJS.ProcessEnv) => Promise<LoginShellRead | null>
 
 it('answers a lookup only with a run that started no earlier, so a run predating an install never counts', async () => {
   vi.useFakeTimers({ toFake: ['Date'] })
   try {
-    const predatesInstall = Promise.withResolvers<NodeJS.ProcessEnv | null>()
+    const predatesInstall = Promise.withResolvers<LoginShellRead | null>()
     const spawner = vi
       .fn<Spawner>()
-      .mockResolvedValueOnce({ PATH: '/old' })
+      .mockResolvedValueOnce({ env: { PATH: '/old' } })
       .mockReturnValueOnce(predatesInstall.promise)
-      .mockResolvedValueOnce({ PATH: '/installed' })
+      .mockResolvedValueOnce({ env: { PATH: '/installed' } })
     const options = { shellOverride: '/bin/bash', env: { HOME: '/host' }, spawner }
     await resolveLoginShellEnvironment(options)
     // A background rerun that read the shell before the agent was installed is still going.
@@ -34,7 +35,7 @@ it('answers a lookup only with a run that started no earlier, so a run predating
       { PATH: '/installed' },
       { PATH: '/installed' }
     ])
-    predatesInstall.resolve({ PATH: '/old' })
+    predatesInstall.resolve({ env: { PATH: '/old' } })
     await new Promise((resolve) => setImmediate(resolve))
     await expect(resolveLoginShellEnvironment(options)).resolves.toEqual({ PATH: '/installed' })
   } finally {

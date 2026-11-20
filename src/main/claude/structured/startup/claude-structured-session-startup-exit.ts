@@ -9,6 +9,8 @@ import type { ClaudeStreamJsonConnection } from '../../claude-stream-json-connec
 import type { StructuredAgentSessionEventSink } from '../../../native-chat/agent-session-wire/journal-ingress/structured-agent-session-event-sink'
 import { claudeStartFailure, claudeStartupAnswer } from '../../sdk-transport/claude-startup-failure'
 import type { AgentSessionStartFailure } from '../../../native-chat/agent-session-wire/startup/structured-agent-session-start-failure'
+import type { ClaudeAcquisitionAttempt } from '../claude-structured-session-state'
+import { explainOtherProgramStart } from './claude-command-other-program'
 
 /** A physical exit waits briefly for initialize's answer, which the start's verdict weighs
  *  against the exit; a query closed by that exit is no answer. */
@@ -47,9 +49,10 @@ export async function claudeExitForReport(
 
 /** An exit before publication can follow initialize's answer, which only publication reads. */
 export async function claudeStartupError(
-  error: unknown,
-  connection: ClaudeStreamJsonConnection | null
+  observed: unknown,
+  { connection, launch }: Pick<ClaudeAcquisitionAttempt, 'connection' | 'launch'>
 ): Promise<unknown> {
+  const error = await explainOtherProgramStart(observed, launch)
   const refusal = startupAcquisitionRefusal(error)
   if (refusal || !connection) {
     return refusal ?? error
@@ -65,11 +68,11 @@ export async function claudeStartupError(
  *  start's root-exit receipt is taken now, before the answer join can delay it. */
 export function claudeStartupExit(
   error: Error,
-  connection: ClaudeStreamJsonConnection | null,
+  attempt: Pick<ClaudeAcquisitionAttempt, 'connection' | 'launch'>,
   events?: Pick<StructuredAgentSessionEventSink, 'observeRootExit'>
 ): [exited: Error, ended: Promise<unknown>] {
   events?.observeRootExit?.()
   // Mark in place because the fault report may retain this error object.
   const exited = withObservedProviderExit(error)
-  return [exited, claudeStartupError(exited, connection)]
+  return [exited, claudeStartupError(exited, attempt)]
 }

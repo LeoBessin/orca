@@ -21,6 +21,7 @@ import {
   guestNativePathEnv,
   resolveGuestNativeProgram
 } from '../../wsl/filesystem/wsl-guest-windows-drive-path'
+import { loginShellAliases } from '../../startup/shell-environment/login-shell-environment'
 import {
   isManagedAgentCli,
   managedAgentCommand
@@ -48,17 +49,50 @@ export type StructuredAgentCommandSettings = Partial<
   Pick<GlobalSettings, 'agentCmdOverrides' | 'agentDefaultEnv'>
 >
 type CommandSettings = StructuredAgentCommandSettings
-type CommandOptions = NonNullable<Parameters<typeof resolveExecutableCommand>[1]>
+type CommandOptions = NonNullable<Parameters<typeof resolveExecutableCommand>[1]> & {
+  /** The user's shell aliases; defaults to the host terminal shell's latest capture. */
+  shellAliases?: ReadonlyMap<string, string>
+}
+type CommandPlan = NonNullable<ReturnType<typeof structuredAgentCommandPlan>>
+
+const MAX_ALIAS_DEPTH = 8
+
+/** Expand a bare program name the way the user's terminal does; an alias Orca can't run literally stays unexpanded. */
+function expandShellAlias(
+  plan: CommandPlan,
+  aliases: ReadonlyMap<string, string> | undefined,
+  platform: NodeJS.Platform
+): CommandPlan {
+  let expanded = plan
+  const seen = new Set<string>()
+  for (let depth = 0; depth < MAX_ALIAS_DEPTH; depth++) {
+    const name = expanded.program
+    const text = /[\\/]/.test(name) || seen.has(name) ? undefined : aliases?.get(name)
+    const next = text === undefined ? null : structuredAgentCommandPlan(text, platform)
+    // `alias claude='claude --flag'` keeps today's literal program and arguments.
+    if (!next || next.program === name) {
+      return expanded
+    }
+    seen.add(name)
+    expanded = { program: next.program, prefixArgs: [...next.prefixArgs, ...expanded.prefixArgs] }
+  }
+  return expanded
+}
 
 function resolveOverride(
   agent: TuiAgent,
   settings: CommandSettings | null | undefined,
   options: CommandOptions
 ) {
-  const plan = structuredAgentCommandPlan(
-    settings?.agentCmdOverrides?.[agent] ?? '',
-    options.platform ?? process.platform
-  )
+  const platform = options.platform ?? process.platform
+  const literal = structuredAgentCommandPlan(settings?.agentCmdOverrides?.[agent] ?? '', platform)
+  const plan =
+    literal &&
+    expandShellAlias(
+      literal,
+      platform === 'win32' ? undefined : (options.shellAliases ?? loginShellAliases()),
+      platform
+    )
   const overlay = settings?.agentDefaultEnv?.[agent]
   const command = plan
     ? resolveExecutableCommand(plan.program, {
@@ -74,7 +108,12 @@ function resolveOverride(
     : null
 }
 
-export type StructuredAgentCommand = { command: string; prefixArgs: string[] }
+export type StructuredAgentCommand = {
+  command: string
+  prefixArgs: string[]
+  /** From the user's Command setting rather than the stock CLI. */
+  configured?: true
+}
 
 /** Read live settings on every lookup; invalid explicit commands must refuse instead of launching stock CLI. */
 export function resolveStructuredAgentCommand(
@@ -112,7 +151,7 @@ export function resolveStructuredAgentCommand(
       reason: 'agentCommandNotRunnable'
     })
   }
-  return invocation
+  return { ...invocation, configured: true }
 }
 
 export type ProgramSearch<T> = {

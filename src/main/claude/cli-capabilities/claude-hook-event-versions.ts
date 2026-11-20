@@ -95,15 +95,34 @@ export function claudeRunsAsyncPromptHook(version: string | null | undefined): b
   return claudeVersionReaches(version, CLAUDE_ASYNC_PROMPT_HOOK_FIRST_VERSION)
 }
 
+type ClaudeVersionLaunch = {
+  cwd: string
+  env: Record<string, string>
+  timeoutMs?: number
+  prefixArgs?: readonly string[]
+}
+
 /** Probe with the launch cwd and env so version-manager shims select the same CLI. */
 export async function probeClaudeCliVersion(
   executablePath: string,
-  launch?: {
-    cwd: string
-    env: Record<string, string>
-    timeoutMs?: number
-    prefixArgs?: readonly string[]
-  }
+  launch?: ClaudeVersionLaunch
+): Promise<string | null> {
+  return parseClaudeCliVersionOutput(await readCliVersionOutput(executablePath, launch))
+}
+
+/** True only when the program answered `--version` successfully and not as Claude Code. */
+export async function answersAsOtherProgram(
+  executablePath: string,
+  launch: ClaudeVersionLaunch
+): Promise<boolean> {
+  const output = await readCliVersionOutput(executablePath, launch)
+  return output !== null && parseClaudeCliVersionOutput(output) === null
+}
+
+/** The program's `--version` output when it exits 0; null when it fails or cannot run. */
+async function readCliVersionOutput(
+  executablePath: string,
+  launch?: ClaudeVersionLaunch
 ): Promise<string | null> {
   try {
     const pathKey = process.platform === 'win32' && process.env.Path !== undefined ? 'Path' : 'PATH'
@@ -124,9 +143,7 @@ export async function probeClaudeCliVersion(
       timeoutMs: launch?.timeoutMs ?? 5_000,
       maxOutputBytes: 4_096
     })
-    return result.code === 0
-      ? parseClaudeCliVersionOutput(`${result.stdout}\n${result.stderr}`)
-      : null
+    return result.code === 0 ? `${result.stdout}\n${result.stderr}` : null
   } catch {
     return null
   }

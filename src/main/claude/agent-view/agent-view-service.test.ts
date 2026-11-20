@@ -80,7 +80,7 @@ it('cleans an owned shortcut in a cached login-shell config on a fresh disabled 
   const config = join(root, 'process-config')
   const cachedConfig = join(root, 'shell-config')
   vi.stubEnv('CLAUDE_CONFIG_DIR', config)
-  const spawner = vi.fn(async () => ({ CLAUDE_CONFIG_DIR: cachedConfig }))
+  const spawner = vi.fn(async () => ({ env: { CLAUDE_CONFIG_DIR: cachedConfig } }))
   await captureLoginShellEnvironment({ spawner })
   await reconcileClaudeAgentViewConfig(join(cachedConfig, 'settings.json'), true)
   const bindings = join(cachedConfig, 'keybindings.json')

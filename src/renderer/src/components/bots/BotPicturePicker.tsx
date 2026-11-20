@@ -175,7 +175,8 @@ export function BotPicturePicker({
   const [onGenerate, setOnGenerate] = useState(false)
   const face = useGenerateFace(
     (made) => {
-      if (onGenerate) {
+      // Applied only while Generate is still the current face.
+      if (generating) {
         onUpload(made.png, -1)
       }
     },
@@ -325,6 +326,8 @@ export function BotPicturePicker({
       {withGenerate ? (
         <BotPictureRowFold open={generating}>
           <GenerateField face={face} />
+          {/* A picture just taken in lands in this slot: its Undo or error stays in reach. */}
+          <BotPictureRowFold open={line.kind !== 'hint'}>{uploadLine}</BotPictureRowFold>
         </BotPictureRowFold>
       ) : null}
       <input

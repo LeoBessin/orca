@@ -75,9 +75,11 @@ export function BotPictureCarousel({
 }): React.JSX.Element {
   const t = useTranslate()
   const count = faces.length
-  // Faces slide only for a move the user made; a list that changes under them (Generate arriving
-  // once its agents are known, a picture taking a slot) lands in place.
-  const [sliding, setSliding] = useState(false)
+  // Faces slide only for a move the user made, over the list it was made on; a list that changes
+  // under them (Generate arriving once its agents are known, a picture taking a slot) lands in place.
+  const order = faces.map((face) => face.key).join(' ')
+  const [slideOver, setSlideOver] = useState<string | null>(null)
+  const sliding = slideOver === order
   const settle = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(
     () => () => {
@@ -88,12 +90,12 @@ export function BotPictureCarousel({
     []
   )
   const go = (next: number): void => {
-    setSliding(true)
+    setSlideOver(order)
     if (settle.current) {
       clearTimeout(settle.current)
     }
     // A little past the 300 ms slide.
-    settle.current = setTimeout(() => setSliding(false), 400)
+    settle.current = setTimeout(() => setSlideOver(null), 400)
     onIndexChange(((next % count) + count) % count)
   }
   const faceClass = cn(FACE_CLASS, !sliding && 'transition-none')

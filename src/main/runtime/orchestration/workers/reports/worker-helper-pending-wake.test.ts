@@ -18,7 +18,7 @@ it('reports a stopped worker after its later-created helper reports idle, preser
   const deps = { getDb: () => db, notify, isWaitingForMail: () => false }
   const target = { kind: 'local' as const, dispatch: worker }
   const stop = { from: 'term_w', reason: 'finished' as const, lastOutput: 'Worker result' }
-  expect(runtime.canPromiseOrchestrationWorkerWake(target)).toBe(true)
+  expect(await runtime.canPromiseOrchestrationWorkerWake(target)).toBe(true)
   const helperTask = db.createTask({ spec: 'helper', runId })
   const helper = createRootDispatch(db, helperTask.id, 'term_h', 'tab:h')
   db.db

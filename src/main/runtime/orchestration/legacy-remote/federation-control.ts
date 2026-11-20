@@ -28,6 +28,7 @@ export const ORCHESTRATION_FEDERATION_CONTROL_METHODS = [
     permission: 'workspace',
     params: FederationFleetSnapshotParams,
     handler: async (params, { runtime, authenticatedCallerFingerprint }) => {
+      const wakeDeadline = Date.now() + 2_500
       const items = await mapWithConcurrency(params.dispatchIds, 16, async (dispatchId) => {
         const attachment = runtime.getOrchestrationDb().getRemoteDispatchAttachment(dispatchId)
         // A Dispatch this home no longer holds here, such as one from an earlier pairing, must not hide the rest.
@@ -42,7 +43,10 @@ export const ORCHESTRATION_FEDERATION_CONTROL_METHODS = [
             attachment.state === 'ready' &&
             !!attachment.pane_key &&
             !!attachment.process_incarnation &&
-            runtime.canPromiseOrchestrationWorkerWake({ kind: 'remote', attachment }) &&
+            (await runtime.canPromiseOrchestrationWorkerWake(
+              { kind: 'remote', attachment },
+              () => Date.now() < wakeDeadline
+            )) &&
             runtime.isOrchestrationWorkerWorking(
               attachment.pane_key,
               attachment.process_incarnation

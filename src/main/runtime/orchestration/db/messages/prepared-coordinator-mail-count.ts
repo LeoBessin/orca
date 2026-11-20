@@ -31,9 +31,11 @@ function refreshExternalWrites(db: OrchestrationDb, owner: Owner): void {
   const version = db.db.pragma('data_version', { simple: true })
   if (version !== owner.dataVersion) {
     db.db.exec(`DELETE FROM orca_coordinator_mail_counts WHERE NOT EXISTS (
-          SELECT 1 FROM dispatch_contexts WHERE id = dispatch_id AND status IN ('pending', 'dispatched'));
+          SELECT 1 FROM dispatch_contexts WHERE id = orca_coordinator_mail_counts.dispatch_id AND status IN ('pending', 'dispatched')
+          UNION ALL SELECT 1 FROM remote_dispatch_attachments WHERE dispatch_id = orca_coordinator_mail_counts.dispatch_id AND state IN ('starting', 'ready'));
         UPDATE orca_coordinator_mail_counts SET mail_count = 0, cursor = 0, ready = 0, revision = revision + 1,
-        run_id = coalesce((SELECT run_id FROM dispatch_contexts WHERE id = dispatch_id), run_id);
+        run_id = coalesce((SELECT run_id FROM dispatch_contexts WHERE id = orca_coordinator_mail_counts.dispatch_id),
+          (SELECT run_id FROM remote_dispatch_attachments WHERE dispatch_id = orca_coordinator_mail_counts.dispatch_id), run_id);
         DELETE FROM orca_mail_lifetime_runs`)
     owner.dataVersion = version
   }
@@ -76,7 +78,9 @@ export async function prepareCoordinatorMailCount(
   refreshExternalWrites(db, countOwner)
   db.db
     .prepare(
-      `INSERT OR IGNORE INTO orca_coordinator_mail_counts(dispatch_id, run_id) SELECT id, run_id FROM dispatch_contexts WHERE id = ? AND status IN ('pending', 'dispatched')`
+      `INSERT OR IGNORE INTO orca_coordinator_mail_counts(dispatch_id, run_id) SELECT id, run_id FROM dispatch_contexts WHERE id = ?1 AND status IN ('pending', 'dispatched')
+        UNION ALL SELECT dispatch_id, run_id FROM remote_dispatch_attachments WHERE dispatch_id = ?1 AND state IN ('starting', 'ready')
+          AND NOT EXISTS (SELECT 1 FROM dispatch_contexts WHERE id = ?1)`
     )
     .run(dispatchId)
   while (active()) {
@@ -118,7 +122,8 @@ async function recover(
     if (!before || before.ready) {
       return
     }
-    if (!advanceMailWorkerLifetimes(db, before.run_id)) {
+    const local = db.getDispatchContextById(dispatchId) !== undefined
+    if (local && !advanceMailWorkerLifetimes(db, before.run_id)) {
       continue
     }
     const page = db.db
@@ -130,12 +135,14 @@ async function recover(
     const count = page.reduce((sum, item) => sum + Number(item.counted), 0)
     db.db.exec('SAVEPOINT coordinator_mail_page')
     try {
-      recordCoordinatorMailPageSenders(
-        db,
-        dispatchId,
-        before.cursor,
-        typeof last === 'number' ? last : before.cursor
-      )
+      if (local) {
+        recordCoordinatorMailPageSenders(
+          db,
+          dispatchId,
+          before.cursor,
+          typeof last === 'number' ? last : before.cursor
+        )
+      }
       db.db
         .prepare(`UPDATE orca_coordinator_mail_counts SET mail_count = mail_count + ?, cursor = ?, ready = ?
       WHERE dispatch_id = ? AND revision = ?`)

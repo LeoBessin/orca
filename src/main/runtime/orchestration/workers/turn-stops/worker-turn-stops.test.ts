@@ -19,7 +19,10 @@ import {
   canPromiseWorkerFinishReport,
   canPromiseHelperFinishReport
 } from './worker-finish-report-eligibility'
-import { prepareCoordinatorMailCount } from '../../db/messages/prepared-coordinator-mail-count'
+import {
+  prepareCoordinatorMailCount,
+  preparedCoordinatorMailCount
+} from '../../db/messages/prepared-coordinator-mail-count'
 
 const PANE = makePaneKey('tab-worker', '11111111-1111-4111-8111-111111111111')
 const HANDLE = 'term_worker'
@@ -516,40 +519,75 @@ it.each(['rejection', 'deleted mail'])(
   }
 )
 
-it('allows a remote finish after an unrelated earlier prompt report', () => {
-  const db = new OrchestrationDb(':memory:')
-  try {
-    db.createRemoteDispatchAttachment({
-      runId: 'run_home',
-      dispatchId: 'ctx_remote',
-      taskId: 'task_home',
-      homePeerFingerprint: 'peer_home',
-      protocolVersion: 3,
-      runtimeEpoch: 'epoch',
-      mutationReceipt: {
-        callerFingerprint: 'peer_home',
-        requestId: 'remote_prompt_finish',
-        method: 'orchestration.federationAttachStart',
-        payloadHash: 'remote_prompt_finish'
+it.each([0, 100, 1_000])(
+  'uses the exact remote finish key across prompts and follow-up mail after %i consumed messages',
+  async (history) => {
+    const db = new OrchestrationDb(':memory:')
+    try {
+      db.createRemoteDispatchAttachment({
+        runId: 'run_home',
+        dispatchId: 'ctx_remote',
+        taskId: 'task_home',
+        homePeerFingerprint: 'peer_home',
+        protocolVersion: 3,
+        runtimeEpoch: 'epoch',
+        mutationReceipt: {
+          callerFingerprint: 'peer_home',
+          requestId: 'remote_prompt_finish',
+          method: 'orchestration.federationAttachStart',
+          payloadHash: 'remote_prompt_finish'
+        }
+      })
+      const attachment = db.getRemoteDispatchAttachment('ctx_remote')!
+      const target = { kind: 'remote' as const, attachment }
+      const deps = { getDb: () => db, notify: vi.fn(), isWaitingForMail: () => false }
+      expect(
+        reportWorkerTurnStop(
+          db,
+          target,
+          { from: 'term_remote', reason: 'needs-input', stopKey: 'prompt' },
+          deps
+        )
+      ).toBe(true)
+      for (let i = 0; i < history; i++) {
+        const mail = db.insertMessage({
+          runId: 'run_home',
+          from: 'term_home',
+          to: 'dispatch:ctx_remote',
+          subject: 'Earlier work'
+        })
+        db.markAsRead([mail.id])
       }
-    })
-    const attachment = db.getRemoteDispatchAttachment('ctx_remote')!
-    const target = { kind: 'remote' as const, attachment }
-    const deps = { getDb: () => db, notify: vi.fn(), isWaitingForMail: () => false }
-    expect(
-      reportWorkerTurnStop(
-        db,
-        target,
-        { from: 'term_remote', reason: 'needs-input', stopKey: 'prompt' },
-        deps
+      expect(await prepareCoordinatorMailCount(db, attachment.dispatch_id, () => true)).toBe(
+        history
       )
-    ).toBe(true)
-    expect(canPromiseWorkerFinishReport(db, target, deps)).toBe(true)
-    expect(
-      reportWorkerTurnStop(db, target, { from: 'term_remote', reason: 'finished' }, deps)
-    ).toBe(true)
-    expect(canPromiseWorkerFinishReport(db, target, deps)).toBe(false)
-  } finally {
-    db.close()
+      expect(canPromiseWorkerFinishReport(db, target, deps)).toBe(true)
+      expect(
+        reportWorkerTurnStop(db, target, { from: 'term_remote', reason: 'finished' }, deps)
+      ).toBe(true)
+      expect(canPromiseWorkerFinishReport(db, target, deps)).toBe(false)
+      const followUp = db.insertMessage({
+        runId: 'run_home',
+        from: 'term_home',
+        to: 'dispatch:ctx_remote',
+        subject: 'Next round'
+      })
+      db.markAsRead([followUp.id])
+      expect(canPromiseWorkerFinishReport(db, target, deps)).toBe(true)
+      expect(
+        reportWorkerTurnStop(db, target, { from: 'term_remote', reason: 'finished' }, deps)
+      ).toBe(true)
+      expect(canPromiseWorkerFinishReport(db, target, deps)).toBe(false)
+      db.db.prepare('DELETE FROM messages WHERE id = ?').run(followUp.id)
+      expect(canPromiseWorkerFinishReport(db, target, deps)).toBe(false)
+      db.recordRemoteAttachmentStage({
+        dispatchId: 'ctx_remote',
+        stage: 'released',
+        state: 'stopped'
+      })
+      expect(preparedCoordinatorMailCount(db, 'ctx_remote')).toBeUndefined()
+    } finally {
+      db.close()
+    }
   }
-})
+)

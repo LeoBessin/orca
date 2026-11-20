@@ -1,3 +1,4 @@
+import { prepareCoordinatorMailCount } from '../db/messages/prepared-coordinator-mail-count'
 import {
   canPromiseWorkerFinishReport,
   canPromiseHelperFinishReport
@@ -22,9 +23,38 @@ import type { AgentStatusOrchestrationContext } from '../../../../shared/agent-s
 export abstract class OrcaRuntimeWithAgentOrchestrationDependencies extends OrcaRuntimeWithRuntimeId {
   protected abstract readonly workerTurnStopReportDeps: WorkerTurnStopReportDeps
 
-  canPromiseOrchestrationWorkerWake(target: WorkerTurnStopDispatch): boolean {
+  async canPromiseOrchestrationWorkerWake(
+    target: WorkerTurnStopDispatch,
+    current: () => boolean = () => true
+  ): Promise<boolean> {
     const db = this.getOrchestrationDbIfAvailable()
-    return !!db && canPromiseWorkerFinishReport(db, target, this.workerTurnStopReportDeps)
+    if (!db || !current()) {
+      return false
+    }
+    if (target.kind === 'local') {
+      return canPromiseWorkerFinishReport(db, target, this.workerTurnStopReportDeps)
+    }
+    const attachment = target.attachment
+    const live = () => {
+      if (!current()) {
+        return false
+      }
+      const row = db.getRemoteDispatchAttachment(attachment.dispatch_id)
+      return (
+        !!row &&
+        row.state === 'ready' &&
+        row.runtime_epoch === attachment.runtime_epoch &&
+        row.home_peer_fingerprint === attachment.home_peer_fingerprint &&
+        row.pane_key === attachment.pane_key &&
+        row.process_incarnation === attachment.process_incarnation &&
+        row.consumer_generation === attachment.consumer_generation
+      )
+    }
+    if (!live()) {
+      return false
+    }
+    await prepareCoordinatorMailCount(db, attachment.dispatch_id, live)
+    return live() && canPromiseWorkerFinishReport(db, target, this.workerTurnStopReportDeps)
   }
 
   async canPromiseOrchestrationHelperReport(

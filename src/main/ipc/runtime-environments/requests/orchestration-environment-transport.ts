@@ -46,6 +46,7 @@ export function createOrchestrationEnvironmentTransport(): OrchestrationEnvironm
         send && {
           ...(send.prepareRequest ? { prepareRequest: send.prepareRequest } : {}),
           ...(send.prepareGuard ? { prepareGuard: send.prepareGuard } : {}),
+          ...(send.signal ? { signal: send.signal } : {}),
           ...(send.expectedRuntimeId === undefined
             ? {}
             : { expectedEnvironmentRuntimeId: send.expectedRuntimeId })

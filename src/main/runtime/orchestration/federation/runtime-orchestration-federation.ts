@@ -114,6 +114,7 @@ export class RuntimeOrchestrationFederation {
         {
           prepareRequest: internal?.prepareRequest,
           prepareGuard: internal?.prepareGuard,
+          signal: internal?.signal,
           expectedRuntimeId
         }
       )

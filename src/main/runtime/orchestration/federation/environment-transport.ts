@@ -19,6 +19,7 @@ export type OrchestrationWorkerServer = {
 export type OrchestrationEnvironmentCallOptions = {
   prepareRequest?: RuntimeRequestPreparation
   prepareGuard?: RuntimeRequestGuard
+  signal?: AbortSignal
   contractVerified?: boolean
   expectedEnvironmentPairingRevision?: number
 }
@@ -26,6 +27,7 @@ export type OrchestrationEnvironmentCallOptions = {
 export type OrchestrationEnvironmentSendOptions = {
   prepareRequest?: RuntimeRequestPreparation
   prepareGuard?: RuntimeRequestGuard
+  signal?: AbortSignal
   /** Send only to this host incarnation; any other answers runtime_environment_changed before sending. */
   expectedRuntimeId?: string
 }

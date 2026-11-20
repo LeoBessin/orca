@@ -33,7 +33,7 @@ export function canPromiseWorkerFinishReport(
     return false
   }
   if (target.kind === 'remote') {
-    const count = db.getDispatchContextById(id) ? preparedCoordinatorMailCount(db, id) : 0
+    const count = preparedCoordinatorMailCount(db, id)
     return (
       count !== undefined &&
       !db.hasPendingFederatedWorkerReport(id) &&

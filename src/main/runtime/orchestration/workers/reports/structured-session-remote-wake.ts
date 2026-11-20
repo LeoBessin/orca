@@ -16,15 +16,29 @@ export async function readRemoteWorkingDispatches(
   >,
   dispatches: readonly FederatedDispatchRow[],
   isCurrent: () => boolean,
-  eligible: (dispatchId: string) => boolean = () => true
+  eligible: (dispatchId: string) => boolean = () => true,
+  sourceSignal?: AbortSignal
 ): Promise<Set<string>> {
+  const controller = new AbortController()
+  const signal = sourceSignal
+    ? AbortSignal.any([sourceSignal, controller.signal])
+    : controller.signal
+  let onAbort: () => void = () => {}
+  const aborted = new Promise<void>((resolve) => {
+    onAbort = resolve
+    signal.addEventListener('abort', onAbort, { once: true })
+    if (signal.aborted) {
+      resolve()
+    }
+  })
   const deadline = Date.now() + 5_000
   const working = new Set<string>()
   let found: (() => void) | undefined
   const positive = new Promise<void>((resolve) => {
     found = resolve
   })
-  const current = () => working.size === 0 && isCurrent() && Date.now() < deadline
+  const current = () =>
+    !signal.aborted && working.size === 0 && isCurrent() && Date.now() < deadline
   const observations = mapWithConcurrency(
     groupFederatedDispatchRows(dispatches),
     4,
@@ -67,6 +81,7 @@ export async function readRemoteWorkingDispatches(
           undefined,
           {
             expectedEnvironmentPairingRevision: server.pairingRevision,
+            signal,
             prepareGuard: async () => {
               if (!current()) {
                 throw new Error('Worker observation is no longer current.')
@@ -105,10 +120,15 @@ export async function readRemoteWorkingDispatches(
       }
     }
   )
-  await withTimeout(
-    Promise.race([observations, positive]),
-    Math.max(1, deadline - Date.now()),
-    undefined
-  )
-  return isCurrent() ? working : new Set()
+  try {
+    await withTimeout(
+      Promise.race([observations, positive, aborted]),
+      Math.max(1, deadline - Date.now()),
+      undefined
+    )
+    return !sourceSignal?.aborted && isCurrent() ? working : new Set()
+  } finally {
+    signal.removeEventListener('abort', onAbort)
+    controller.abort()
+  }
 }

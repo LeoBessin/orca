@@ -183,7 +183,8 @@ export function installCoordinatorMailCountTriggers(db: OrchestrationDb): void {
     ${DELETE_TRIGGER}
     CREATE TEMP TRIGGER orca_mail_count_update AFTER UPDATE OF read, to_handle, from_handle, sender_pane_key, created_at ON main.messages
       BEGIN ${adjust('OLD', '-')} ${dependencies('OLD', false)} ${adjust('NEW', '+')} ${dependencies('NEW', true)} END;
-    CREATE TEMP TRIGGER orca_mail_count_worker_insert AFTER INSERT ON main.dispatch_contexts BEGIN ${invalidate('NEW')} END;
+    CREATE TEMP TRIGGER orca_mail_count_worker_insert AFTER INSERT ON main.dispatch_contexts
+      BEGIN ${invalidate('NEW')} DELETE FROM orca_coordinator_mail_counts WHERE dispatch_id = NEW.id; END;
     CREATE TEMP TRIGGER orca_mail_count_worker_delete BEFORE DELETE ON main.dispatch_contexts
       BEGIN ${invalidate('OLD')} DELETE FROM orca_coordinator_mail_counts WHERE dispatch_id = OLD.id; END;
     CREATE TEMP TRIGGER orca_mail_count_worker_identity AFTER UPDATE OF
@@ -201,6 +202,11 @@ export function installCoordinatorMailCountTriggers(db: OrchestrationDb): void {
       BEGIN ${invalidate('OLD', 'AND s.last_sent > min(coalesce(orca_mail_completed_timestamp(OLD.completed_at), 9223372036854775807), coalesce(orca_mail_completed_timestamp(NEW.completed_at), 9223372036854775807))')}
         ${invalidate('NEW', 'AND s.last_sent > min(coalesce(orca_mail_completed_timestamp(OLD.completed_at), 9223372036854775807), coalesce(orca_mail_completed_timestamp(NEW.completed_at), 9223372036854775807))')}
       END;
+    CREATE TEMP TRIGGER orca_mail_count_remote_delete AFTER DELETE ON main.remote_dispatch_attachments
+      BEGIN DELETE FROM orca_coordinator_mail_counts WHERE dispatch_id = OLD.dispatch_id; END;
+    CREATE TEMP TRIGGER orca_mail_count_remote_settled AFTER UPDATE OF state ON main.remote_dispatch_attachments
+      WHEN NEW.state NOT IN ('starting', 'ready')
+      BEGIN DELETE FROM orca_coordinator_mail_counts WHERE dispatch_id = NEW.dispatch_id; END;
     CREATE TEMP TRIGGER orca_mail_count_worker_settled AFTER UPDATE OF status ON main.dispatch_contexts
       BEGIN DELETE FROM orca_coordinator_mail_counts WHERE dispatch_id = NEW.id AND NEW.status NOT IN ('pending', 'dispatched'); END;
   `)

@@ -20,7 +20,11 @@ import type { AgentSessionTurnCompletionEvent } from '../../../../shared/agent-s
 import type { LinkedSkills } from '../../../native-chat/native-chat-skill-roots'
 
 export type StructuredAgentSessionRuntimeDeps = StructuredAgentSessionTransportOverrides & {
-  hasPendingOrchestrationWake?: (sessionId: string, isCurrent?: () => boolean) => Promise<boolean>
+  hasPendingOrchestrationWake?: (
+    sessionId: string,
+    isCurrent?: () => boolean,
+    signal?: AbortSignal
+  ) => Promise<boolean>
   /** Host state root. The record store and the journal database both hang off it. */
   stateDirectory: string
   legacySessionTabIds?: readonly string[]

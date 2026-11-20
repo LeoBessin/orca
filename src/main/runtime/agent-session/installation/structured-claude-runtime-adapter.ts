@@ -17,7 +17,11 @@ import type { ClaudeCliFlagSupport } from '../../../claude/cli-capabilities/clau
 import { prewarmClaudeCliFlags } from '../../../claude/cli-capabilities/claude-cli-flag-prewarm'
 
 export type StructuredClaudeRuntimeAdapterDeps = {
-  hasPendingOrchestrationWake?: (sessionId: string, isCurrent?: () => boolean) => Promise<boolean>
+  hasPendingOrchestrationWake?: (
+    sessionId: string,
+    isCurrent?: () => boolean,
+    signal?: AbortSignal
+  ) => Promise<boolean>
   store: AgentSessionRecordStore
   resolveWorkspacePath: (workspaceId: string) => Promise<string>
   resolveAccountHome?: ClaudeAtRestCommandsDeps['resolveAccountHome']

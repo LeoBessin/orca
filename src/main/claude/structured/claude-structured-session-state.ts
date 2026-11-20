@@ -46,7 +46,11 @@ export type ClaudeLateDispatchOutcome =
   | { clientMessageId: string; state: 'unknown'; reason: string }
 
 export type ClaudeStructuredSessionAdapterDeps = {
-  hasPendingOrchestrationWake?: (sessionId: string, isCurrent?: () => boolean) => Promise<boolean>
+  hasPendingOrchestrationWake?: (
+    sessionId: string,
+    isCurrent?: () => boolean,
+    signal?: AbortSignal
+  ) => Promise<boolean>
   namingInputs?: (record: AgentSessionRecord) => Promise<ClaudeNamingInputs>
   namingRecord?: (sessionId: string) => AgentSessionRecord | null | undefined
   atRestCommands?: ClaudeAtRestCommandCatalog

@@ -11,10 +11,11 @@ import { readRemoteWorkingDispatches } from './structured-session-remote-wake'
 export async function structuredSessionHasPendingWake(
   runtime: OrcaRuntimeService,
   sessionId: string,
-  isCurrent: () => boolean = () => true
+  isCurrent: () => boolean = () => true,
+  signal?: AbortSignal
 ): Promise<boolean> {
   const deadline = Date.now() + 5_000
-  const current = () => isCurrent() && Date.now() < deadline
+  const current = () => !signal?.aborted && isCurrent() && Date.now() < deadline
   const db = runtime.getExistingOrchestrationDb()
   if (!current() || !db || !isOrcaSessionId(sessionId)) {
     return false
@@ -102,7 +103,8 @@ export async function structuredSessionHasPendingWake(
     runtime,
     remoteIds.flatMap((id) => remote.get(id) ?? []),
     current,
-    eligible
+    eligible,
+    signal
   )
   return [...working].some(eligible)
 }

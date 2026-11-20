@@ -65,13 +65,6 @@ it.each([
         translator.goal.deferForWake()
         frame({ type: 'system', subtype: 'session_state_changed', state: 'idle' })
       }
-      if (idle) {
-        translator.goal.deferForWake()
-        frame({ type: 'system', subtype: 'session_state_changed', state: 'idle' })
-      }
-      if (resumed) {
-        answer(`Goal active: ${objective} (not yet evaluated)`, '<synthetic>')
-      }
       if (continued) {
         answer('The worker reported and the task is finished.')
       }

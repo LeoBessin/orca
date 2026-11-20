@@ -24458,15 +24458,15 @@
       "orMore_many": "{{names}} или ещё {{count}} человек",
       "orMore": "{{names}} или ещё {{count}} человека",
       "unnamed": {
-        "slackChannel_one": "канал Slack",
+        "slackChannel_one": "{{count}} канал Slack",
         "slackChannel_other": "{{count}} канала Slack",
         "slackChannel_few": "{{count}} канала Slack",
         "slackChannel_many": "{{count}} каналов Slack",
-        "githubRepo_one": "репозиторий",
+        "githubRepo_one": "{{count}} репозиторий",
         "githubRepo_other": "{{count}} репозитория",
         "githubRepo_few": "{{count}} репозитория",
         "githubRepo_many": "{{count}} репозиториев",
-        "linearTeam_one": "команда Linear",
+        "linearTeam_one": "{{count}} команда Linear",
         "linearTeam_other": "{{count}} команды Linear",
         "linearTeam_few": "{{count}} команды Linear",
         "linearTeam_many": "{{count}} команд Linear",
@@ -26078,7 +26078,7 @@
       "headline": {
         "ended": "Доступ к Google прекращён. Переподключите.",
         "connected": "Google подключён",
-        "toFix_one": "Почти готово: исправить 1 пункт",
+        "toFix_one": "Почти готово: исправить {{count}} пункт",
         "toFix_other": "Почти готово: пунктов для исправления — {{count}}",
         "toFix_few": "Почти готово: пунктов для исправления — {{count}}",
         "toFix_many": "Почти готово: пунктов для исправления — {{count}}"
@@ -26099,7 +26099,7 @@
         "stepApp": "{{bot}} открывает Google Cloud и настраивает приложение",
         "stepSignIn": "Вы ставите флажок с условиями Google и входите",
         "stepCheck": "{{bot}} проверяет, что Gmail, Календарь и Drive работают",
-        "continue": "Continue"
+        "continue": "Продолжить"
       },
       "connectDescription": "Дайте ботам доступ к Gmail, Календарю и Drive. Ваш вход остаётся на {{host}}.",
       "links": {
@@ -26181,7 +26181,7 @@
         "title": "Какие сервисы Google использовать?",
         "note": "С любым из них я смогу искать людей по имени. Позже можно добавить другие."
       },
-      "continue": "Continue",
+      "continue": "Продолжить",
       "movedDown": "Продолжение ниже.",
       "connect": {
         "titleAccount": "Войдите, чтобы подключить {{email}}",
@@ -26227,7 +26227,7 @@
         "turnOn": "Включить",
         "copyForAdmin": "Скопировать для администратора",
         "checkAgain": "Проверить снова",
-        "continue": "Continue",
+        "continue": "Продолжить",
         "startOver": "Начать заново"
       },
       "blocker": {
@@ -26512,7 +26512,7 @@
         "fromLink": "По ссылке",
         "pasteDescription": "Вставьте ссылку, которой с вами поделились.",
         "link": "Ссылка",
-        "continue": "Continue",
+        "continue": "Продолжить",
         "have": "У вас уже есть этот бот",
         "haveDetail": "{{name}} · создан {{date}}",
         "close": "Закрыть",
@@ -26775,7 +26775,7 @@
       "needsSignIn": "Требуется вход",
       "toldBot": "Я вошёл в Orca.",
       "signedIn": "Вход в Orca выполнен",
-      "continue": "Continue",
+      "continue": "Продолжить",
       "webhooksChat": "Для вебхуков нужен вход в Orca. Я создам его, как только вы войдёте.",
       "eventsChat": "Для событий {{source}} нужен вход в Orca. Я сохраню это правило, как только вы войдёте."
     },
@@ -26996,9 +26996,9 @@
         "tomorrow": "Завтра",
         "monday": "Понедельник",
         "inHours_one": "Через {{count}} час",
-        "inHours_other": "Через {{count}} час",
-        "inHours_few": "Через {{count}} час",
-        "inHours_many": "Через {{count}} час"
+        "inHours_other": "Через {{count}} часа",
+        "inHours_few": "Через {{count}} часа",
+        "inHours_many": "Через {{count}} часов"
       }
     },
     "search": {

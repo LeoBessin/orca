@@ -4817,7 +4817,7 @@
       "updateOrcaOn": "Actualizar Orca en {{host}}",
       "cantReach": "No se puede conectar con {{host}}. Sus bots aparecerán cuando vuelva.",
       "noBotsYet": "Aún no hay bots.",
-      "offline": "Offline",
+      "offline": "Sin conexión",
       "updateToSee": "Actualiza Orca en {{host}} para ver sus bots.",
       "offEnd": "Los bots están desactivados en {{host}}.",
       "updateToCreate": "Actualiza Orca en {{host}} para crear bots desde tu teléfono."

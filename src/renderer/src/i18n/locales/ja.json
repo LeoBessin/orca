@@ -25703,7 +25703,7 @@
         "title": "どの Google サービスを使いますか？",
         "note": "どれを使っても名前でユーザーを検索できます。あとから追加することもできます。"
       },
-      "continue": "Continue",
+      "continue": "続行",
       "movedDown": "下に続きます。",
       "connect": {
         "titleAccount": "サインインして {{email}} を接続",
@@ -25748,7 +25748,7 @@
         "turnOn": "オンにする",
         "copyForAdmin": "管理者用にコピー",
         "checkAgain": "再確認",
-        "continue": "Continue",
+        "continue": "続行",
         "startOver": "最初からやり直す"
       },
       "blocker": {
@@ -25990,7 +25990,7 @@
       "owner": "オーナー",
       "needsSlack": "ワークスペースからユーザーを選ぶには、先に {{name}} を Slack に追加してください。",
       "outsiders": "{{workspace}} のほかの人には、あなたに依頼するよう案内する非公開メモが届きます。",
-      "removePerson": "Remove {{name}}",
+      "removePerson": "{{name}} を削除",
       "showMore": "さらに {{count}} 個を表示",
       "selectedHeading": "選択中",
       "canAsk": "質問できる",
@@ -26567,7 +26567,7 @@
         "missing": "がない",
         "text": "本文に「{{text}}」を含む",
         "subject": "{{subject}} に関するもの",
-        "and": ", and "
+        "and": "、"
       },
       "copy": "コピー",
       "url": "URL",
@@ -26860,7 +26860,7 @@
         "stepApp": "{{bot}} が Google Cloud を開いてアプリを設定します",
         "stepSignIn": "Google の利用規約のチェックボックスをオンにしてサインインします",
         "stepCheck": "{{bot}} が Gmail、カレンダー、Drive の動作を確認します",
-        "continue": "Continue"
+        "continue": "続行"
       },
       "connectDescription": "ボットに Gmail、カレンダー、Drive へのアクセスを与えます。サインインは {{host}} に残ります。",
       "links": {
@@ -26938,7 +26938,7 @@
       "oldBot": "古いボット",
       "nameAnother": "新規ボットに名前を付ける",
       "keysStay": "キーとログイン情報は引き継がれません",
-      "removePath": "Remove {{name}}",
+      "removePath": "{{name}} を削除",
       "sendStep": "古いボットにこのメッセージを送ってください",
       "copied": "コピーしました",
       "seeMessage": "メッセージを見る",
@@ -27110,7 +27110,7 @@
       "sameLink": "同じリンクに反映されます。作成済みのコピーはそのままです。",
       "reload": "リロード",
       "movedHere": "このリンクは別の場所で更新されました。",
-      "updating": "Updating…",
+      "updating": "更新中…",
       "publishing": "公開中…",
       "manageSharing": "共有を管理…",
       "sharedUpdated": "共有中 · {{date}} 更新",
@@ -27172,7 +27172,7 @@
         "fromLink": "リンクから",
         "pasteDescription": "共有されたリンクを貼り付けてください。",
         "link": "リンク",
-        "continue": "Continue",
+        "continue": "続行",
         "have": "このボットはすでにあります",
         "haveDetail": "{{name}} · {{date}} 作成",
         "close": "閉じる",
@@ -27236,10 +27236,8 @@
     "panel": {
       "idle": "アイドル",
       "more": "もっと",
-      "needYou_one": "{{count}} 件が対応待ち",
       "showNeedYou_one": "パネルを表示 · 対応が必要 {{count}} 件",
       "showNeedYou_other": "パネルを表示 · 対応が必要 {{count}} 件",
-      "working_one": "実行中 {{count}} 件",
       "settings": {
         "title": "設定"
       },
@@ -27429,7 +27427,7 @@
       "needsSignIn": "サインインが必要です",
       "toldBot": "Orca にサインインしました。",
       "signedIn": "Orca にサインイン済み",
-      "continue": "Continue",
+      "continue": "続行",
       "webhooksChat": "Webhook には Orca へのサインインが必要です。サインインしたら作成します。",
       "eventsChat": "{{source}} のイベントには Orca へのサインインが必要です。サインインしたらこのルールを保存します。"
     },
@@ -27669,11 +27667,7 @@
     "usageLimit": {
       "stoppedCount": "停止 {{count}} 件"
     },
-    "hover": {
-      "needsYouHeading_one": "対応が必要なものが 1 件あります",
-      "moreAsks_one": "+ ほか {{count}} 件の質問",
-      "itemsNeedYou_one": "あなた向けにフラグを付けた項目 {{count}} 件"
-    }
+    "hover": {}
   },
   "speechModelUpdate": {
     "update": "更新",

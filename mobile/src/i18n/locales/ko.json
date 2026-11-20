@@ -4829,7 +4829,7 @@
         "working": "진행 중",
         "needsYou": "확인 필요",
         "done": "완료",
-        "canceled": "Canceled"
+        "canceled": "취소됨"
       },
       "needYouCount_one": "확인이 필요한 항목 {{count}}개",
       "needYouCount_other": "확인이 필요한 항목 {{count}}개",

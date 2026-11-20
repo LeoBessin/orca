@@ -25118,7 +25118,7 @@
       "owner": "Propriétaire",
       "needsSlack": "Ajoutez d’abord {{name}} à Slack pour choisir des personnes de votre espace de travail.",
       "outsiders": "Toutes les autres personnes de {{workspace}} reçoivent une note privée pour vous demander.",
-      "removePerson": "Remove {{name}}",
+      "removePerson": "Retirer {{name}}",
       "showMore": "Afficher {{count}} plus",
       "selectedHeading": "Sélectionné",
       "canAsk": "Peut demander",
@@ -25863,14 +25863,14 @@
         "filterNamed": "Filtrer les éléments, filtrés par {{filter}}",
         "filterBot": "Bot",
         "outside_one": "{{count}} autre hors de ce groupe",
-        "outside_other": "{{count}} autre hors de ce groupe",
-        "outside_many": "{{count}} autre hors de ce groupe",
+        "outside_other": "{{count}} autres hors de ce groupe",
+        "outside_many": "{{count}} autres hors de ce groupe",
         "outsideRoom_one": "{{count}} autre hors de ce salon",
-        "outsideRoom_other": "{{count}} autre hors de ce salon",
-        "outsideRoom_many": "{{count}} autre hors de ce salon",
+        "outsideRoom_other": "{{count}} autres hors de ce salon",
+        "outsideRoom_many": "{{count}} autres hors de ce salon",
         "outsideThread_one": "{{count}} autre hors de ce fil",
-        "outsideThread_other": "{{count}} autre hors de ce fil",
-        "outsideThread_many": "{{count}} autre hors de ce fil"
+        "outsideThread_other": "{{count}} autres hors de ce fil",
+        "outsideThread_many": "{{count}} autres hors de ce fil"
       },
       "panel": {
         "membersMore": "Membres : {{names}} et {{count}} autres",
@@ -26076,9 +26076,9 @@
       "oldBot": "Ancien bot",
       "nameAnother": "Nommer un nouveau bot",
       "keysStay": "Les clés et identifiants restent sur place",
-      "removePath": "Remove {{name}}",
+      "removePath": "Retirer {{name}}",
       "sendStep": "Envoyez ce message à votre ancien bot",
-      "copied": "Copied",
+      "copied": "Copié",
       "seeMessage": "Voir le message",
       "addStep": "Ajouter le dossier qu’il a créé",
       "replyLabel": "Sa réponse",
@@ -26243,7 +26243,7 @@
       "updatedAt": "Mis à jour le {{date}}",
       "upToDate": "À jour",
       "changedSince": "Bot modifié depuis",
-      "copied": "Copied",
+      "copied": "Copié",
       "publishedJustNow": "Publié à l’instant",
       "nextUpdate": "Prochaine mise à jour",
       "sameLink": "Utilise le même lien. Les copies déjà faites restent telles quelles.",
@@ -26389,7 +26389,7 @@
     "needs": {
       "access": "{{person}} a demandé l’accès",
       "connector": "{{name}} a besoin que vous vous reconnectiez ou que vous le corrigiez.",
-      "fixConnector": "Open {{name}}",
+      "fixConnector": "Ouvrir {{name}}",
       "open": "Ouvert",
       "openRun": "Ouvrir l'exécution",
       "permission": "Autorisation requise",
@@ -26789,8 +26789,8 @@
         "tomorrow": "Demain",
         "monday": "Lundi",
         "inHours_one": "Dans {{count}} heure",
-        "inHours_other": "Dans {{count}} heure",
-        "inHours_many": "Dans {{count}} heure"
+        "inHours_other": "Dans {{count}} heures",
+        "inHours_many": "Dans {{count}} heures"
       }
     },
     "search": {

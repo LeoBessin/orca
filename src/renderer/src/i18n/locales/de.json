@@ -25167,11 +25167,11 @@
         "filterNamed": "Elemente filtern, gefiltert nach {{filter}}",
         "filterBot": "Bot",
         "outside_one": "{{count}} weiteres außerhalb dieser Gruppe",
-        "outside_other": "{{count}} weiteres außerhalb dieser Gruppe",
+        "outside_other": "{{count}} weitere außerhalb dieser Gruppe",
         "outsideRoom_one": "{{count}} weiteres außerhalb dieses Raums",
-        "outsideRoom_other": "{{count}} weiteres außerhalb dieses Raums",
+        "outsideRoom_other": "{{count}} weitere außerhalb dieses Raums",
         "outsideThread_one": "{{count}} weiteres außerhalb dieses Threads",
-        "outsideThread_other": "{{count}} weiteres außerhalb dieses Threads"
+        "outsideThread_other": "{{count}} weitere außerhalb dieses Threads"
       },
       "panel": {
         "membersMore": "Mitglieder: {{names}} und {{count}} weitere",
@@ -25298,7 +25298,7 @@
         "stepApp": "{{bot}} öffnet Google Cloud und richtet die App ein",
         "stepSignIn": "Du setzt das Häkchen bei Googles Nutzungsbedingungen und meldest dich an",
         "stepCheck": "{{bot}} prüft, ob Gmail, Kalender und Drive funktionieren",
-        "continue": "Continue"
+        "continue": "Weiter"
       },
       "connectDescription": "Gib deinen Bots Zugriff auf Gmail, Kalender und Drive. Deine Anmeldung bleibt auf {{host}}.",
       "links": {
@@ -25380,7 +25380,7 @@
         "title": "Welche Google-Dienste soll ich nutzen?",
         "note": "Mit jedem davon kann ich Personen nach Namen finden. Du kannst später weitere hinzufügen."
       },
-      "continue": "Continue",
+      "continue": "Weiter",
       "movedDown": "Weiter unten fortgesetzt.",
       "connect": {
         "titleAccount": "Anmelden, um {{email}} zu verbinden",
@@ -25426,7 +25426,7 @@
         "turnOn": "Aktivieren",
         "copyForAdmin": "Für deinen Administrator kopieren",
         "checkAgain": "Erneut prüfen",
-        "continue": "Continue",
+        "continue": "Weiter",
         "startOver": "Von vorn beginnen"
       },
       "blocker": {
@@ -25709,7 +25709,7 @@
         "fromLink": "Aus einem Link",
         "pasteDescription": "Füge einen Link ein, den jemand geteilt hat.",
         "link": "Link",
-        "continue": "Continue",
+        "continue": "Weiter",
         "have": "Du hast diesen Bot bereits",
         "haveDetail": "{{name}} · erstellt am {{date}}",
         "close": "Schließen",
@@ -25964,7 +25964,7 @@
       "needsSignIn": "Anmeldung erforderlich",
       "toldBot": "Ich bin jetzt bei Orca angemeldet.",
       "signedIn": "Bei Orca angemeldet",
-      "continue": "Continue",
+      "continue": "Weiter",
       "webhooksChat": "Webhooks erfordern eine Orca-Anmeldung. Ich erstelle ihn, sobald du angemeldet bist.",
       "eventsChat": "{{source}}-Ereignisse erfordern eine Orca-Anmeldung. Ich speichere diese Regel, sobald du angemeldet bist."
     },
@@ -26181,7 +26181,7 @@
         "tomorrow": "Morgen",
         "monday": "Montag",
         "inHours_one": "In {{count}} Stunde",
-        "inHours_other": "In {{count}} Stunde"
+        "inHours_other": "In {{count}} Stunden"
       }
     },
     "search": {

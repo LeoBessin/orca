@@ -5188,7 +5188,7 @@
         "movedOne": "{{title}} перемещено в {{status}}",
         "movedMany": "Элементы ({{count}}) перемещены в {{status}}",
         "doneFailed": "Не удалось отметить как выполненное: {{why}}",
-        "moveFailed_one": "Не удалось переместить: {{why}}",
+        "moveFailed_one": "Не удалось переместить {{count}} элемент: {{why}}",
         "moveFailed_other": "Не удалось переместить {{count}} элемента: {{why}}",
         "moveFailed_few": "Не удалось переместить {{count}} элемента: {{why}}",
         "moveFailed_many": "Не удалось переместить {{count}} элементов: {{why}}",

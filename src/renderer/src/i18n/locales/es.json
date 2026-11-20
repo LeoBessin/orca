@@ -24809,7 +24809,7 @@
         "title": "¿Qué servicios de Google debo usar?",
         "note": "Con cualquiera de estos puedo buscar personas por nombre. Puedes añadir más después."
       },
-      "continue": "Continue",
+      "continue": "Continuar",
       "movedDown": "Continúa más abajo.",
       "connect": {
         "titleAccount": "Inicia sesión para conectar {{email}}",
@@ -24854,7 +24854,7 @@
         "turnOn": "Activar",
         "copyForAdmin": "Copiar para tu administrador",
         "checkAgain": "Verificar de nuevo",
-        "continue": "Continue",
+        "continue": "Continuar",
         "startOver": "Empezar de nuevo"
       },
       "blocker": {
@@ -25097,7 +25097,7 @@
       "owner": "Propietario",
       "needsSlack": "Primero añade {{name}} a Slack para elegir personas de tu workspace.",
       "outsiders": "Todos los demás en {{workspace}} reciben una nota privada para que te pregunten.",
-      "removePerson": "Remove {{name}}",
+      "removePerson": "Quitar {{name}}",
       "showMore": "Mostrar {{count}} más",
       "selectedHeading": "Seleccionado",
       "canAsk": "Puede preguntar",
@@ -25644,7 +25644,7 @@
         "duplicate": "Duplicado ×{{count}}",
         "duplicateDetail": "ya recibido",
         "sample": "muestra",
-        "queued": "Queued",
+        "queued": "En cola",
         "queuedDetail": "esperando al equipo de {{bot}}",
         "delivered": "Entregado",
         "deliveredDetail": "en el equipo de {{bot}}",
@@ -25977,7 +25977,7 @@
         "stepApp": "{{bot}} abre Google Cloud y configura la app",
         "stepSignIn": "Marcas la casilla de términos de Google e inicias sesión",
         "stepCheck": "{{bot}} comprueba que Gmail, Calendar y Drive funcionen",
-        "continue": "Continue"
+        "continue": "Continuar"
       },
       "connectDescription": "Da a tus bots acceso a Gmail, Calendar y Drive. Tu inicio de sesión se queda en {{host}}.",
       "links": {
@@ -26055,7 +26055,7 @@
       "oldBot": "Bot antiguo",
       "nameAnother": "Ponle nombre a un nuevo bot",
       "keysStay": "Las claves y los inicios de sesión se quedan atrás",
-      "removePath": "Remove {{name}}",
+      "removePath": "Quitar {{name}}",
       "sendStep": "Envía este mensaje a tu bot antiguo",
       "copied": "copiado",
       "seeMessage": "Ver el mensaje",
@@ -26228,7 +26228,7 @@
       "sameLink": "Va al mismo enlace. Las copias ya hechas se quedan como están.",
       "reload": "Recargar",
       "movedHere": "Este enlace se actualizó en otro lugar.",
-      "updating": "Updating…",
+      "updating": "Actualizando…",
       "publishing": "Publicando…",
       "manageSharing": "Gestionar uso compartido…",
       "sharedUpdated": "Compartido · actualizado el {{date}}",
@@ -26290,7 +26290,7 @@
         "fromLink": "Desde un enlace",
         "pasteDescription": "Pega un enlace que alguien haya compartido.",
         "link": "Enlace",
-        "continue": "Continue",
+        "continue": "Continuar",
         "have": "Ya tienes este bot",
         "haveDetail": "{{name}} · creado el {{date}}",
         "close": "Cerrar",
@@ -26368,7 +26368,7 @@
     "needs": {
       "access": "{{person}} pidió acceso",
       "connector": "{{name}} necesita que vuelvas a iniciar sesión o lo arregles.",
-      "fixConnector": "Open {{name}}",
+      "fixConnector": "Abrir {{name}}",
       "open": "Abierto",
       "openRun": "Abrir ejecución",
       "permission": "Se necesita permiso",
@@ -26549,7 +26549,7 @@
       "needsSignIn": "Necesita iniciar sesión",
       "toldBot": "Ya inicié sesión en Orca.",
       "signedIn": "Sesión iniciada en Orca",
-      "continue": "Continue",
+      "continue": "Continuar",
       "webhooksChat": "Los webhooks requieren iniciar sesión en Orca. Lo crearé cuando hayas entrado.",
       "eventsChat": "Los eventos de {{source}} requieren iniciar sesión en Orca. Guardaré esta regla cuando hayas entrado."
     },
@@ -26768,8 +26768,8 @@
         "tomorrow": "Mañana",
         "monday": "Lunes",
         "inHours_one": "En {{count}} hora",
-        "inHours_other": "En {{count}} hora",
-        "inHours_many": "En {{count}} hora"
+        "inHours_other": "En {{count}} horas",
+        "inHours_many": "En {{count}} horas"
       }
     },
     "search": {

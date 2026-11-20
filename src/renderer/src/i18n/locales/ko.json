@@ -24099,7 +24099,7 @@
         "title": "어떤 Google 서비스를 사용할까요?",
         "note": "어느 것이든 이름으로 사람을 찾을 수 있습니다. 나중에 더 추가할 수 있습니다."
       },
-      "continue": "Continue",
+      "continue": "계속",
       "movedDown": "아래에서 계속됩니다.",
       "connect": {
         "titleAccount": "로그인하여 {{email}} 연결",
@@ -24144,7 +24144,7 @@
         "turnOn": "켜기",
         "copyForAdmin": "관리자용으로 복사",
         "checkAgain": "다시 확인",
-        "continue": "Continue",
+        "continue": "계속",
         "startOver": "처음부터 다시"
       },
       "blocker": {
@@ -24386,7 +24386,7 @@
       "owner": "소유자",
       "needsSlack": "워크스페이스에서 사람을 고르려면 먼저 {{name}}을(를) Slack에 추가하세요.",
       "outsiders": "{{workspace}}의 다른 모든 사람은 나에게 요청하라는 비공개 메모를 받습니다.",
-      "removePerson": "Remove {{name}}",
+      "removePerson": "{{name}} 제거",
       "showMore": "{{count}} 더 보기",
       "selectedHeading": "선택됨",
       "canAsk": "요청 가능",
@@ -25256,7 +25256,7 @@
         "stepApp": "{{bot}}이(가) Google Cloud를 열고 앱을 설정합니다",
         "stepSignIn": "Google 약관에 체크하고 로그인합니다",
         "stepCheck": "{{bot}}이(가) Gmail, 캘린더, Drive가 작동하는지 확인합니다",
-        "continue": "Continue"
+        "continue": "계속"
       },
       "connectDescription": "봇에게 Gmail, 캘린더, Drive 접근 권한을 주세요. 로그인 정보는 {{host}}에 남습니다.",
       "links": {
@@ -25334,7 +25334,7 @@
       "oldBot": "이전 봇",
       "nameAnother": "새 봇 이름 지정",
       "keysStay": "키와 로그인 정보는 남겨 둡니다",
-      "removePath": "Remove {{name}}",
+      "removePath": "{{name}} 제거",
       "sendStep": "이전 봇에게 이 메시지를 보내세요",
       "copied": "복사됨",
       "seeMessage": "메시지 보기",
@@ -25506,7 +25506,7 @@
       "sameLink": "같은 링크로 갑니다. 이미 만든 복사본은 그대로 유지됩니다.",
       "reload": "새로고침",
       "movedHere": "이 링크가 다른 곳에서 업데이트되었습니다.",
-      "updating": "Updating…",
+      "updating": "업데이트 중…",
       "publishing": "게시 중…",
       "manageSharing": "공유 관리…",
       "sharedUpdated": "공유됨 · {{date}} 업데이트",
@@ -25568,7 +25568,7 @@
         "fromLink": "링크에서",
         "pasteDescription": "다른 사람이 공유한 링크를 붙여 넣으세요.",
         "link": "링크",
-        "continue": "Continue",
+        "continue": "계속",
         "have": "이미 이 봇이 있습니다",
         "haveDetail": "{{name}} · {{date}} 생성",
         "close": "닫기",
@@ -25632,10 +25632,8 @@
     "panel": {
       "idle": "유휴",
       "more": "많음",
-      "needYou_one": "확인 필요 {{count}}개",
       "showNeedYou_one": "패널 보기 · 확인 필요 {{count}}개",
       "showNeedYou_other": "패널 보기 · 확인 필요 {{count}}개",
-      "working_one": "{{count}}개 작업 중",
       "settings": {
         "title": "설정"
       },
@@ -25647,7 +25645,7 @@
     "needs": {
       "access": "{{person}}님이 접근 권한을 요청함",
       "connector": "{{name}}에 다시 로그인하거나 문제를 해결해야 합니다.",
-      "fixConnector": "Open {{name}}",
+      "fixConnector": "{{name}} 열기",
       "open": "열림",
       "openRun": "실행 열기",
       "permission": "권한 필요",
@@ -25825,7 +25823,7 @@
       "needsSignIn": "로그인 필요",
       "toldBot": "이제 Orca에 로그인했어요.",
       "signedIn": "Orca에 로그인됨",
-      "continue": "Continue",
+      "continue": "계속",
       "webhooksChat": "웹훅에는 Orca 로그인이 필요합니다. 로그인하시면 만들게요.",
       "eventsChat": "{{source}} 이벤트에는 Orca 로그인이 필요합니다. 로그인하시면 이 규칙을 저장할게요."
     },
@@ -26011,7 +26009,7 @@
         "reason": "{{count}}일 동안 활동이 없습니다."
       },
       "status": {
-        "canceled": "Canceled",
+        "canceled": "취소됨",
         "done": "완료",
         "needsYou": "확인 필요",
         "planned": "계획됨",
@@ -26065,11 +26063,7 @@
     "usageLimit": {
       "stoppedCount": "{{count}}개 중지됨"
     },
-    "hover": {
-      "needsYouHeading_one": "확인이 필요한 항목 1개",
-      "moreAsks_one": "+{{count}}개 요청 더",
-      "itemsNeedYou_one": "나를 위해 표시한 항목 {{count}}개"
-    }
+    "hover": {}
   },
   "speechModelUpdate": {
     "update": "업데이트",

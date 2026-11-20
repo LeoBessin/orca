@@ -25368,7 +25368,7 @@
         "title": "Quais serviços do Google devo usar?",
         "note": "Com qualquer um destes, consigo encontrar pessoas pelo nome. Você pode adicionar mais depois."
       },
-      "continue": "Continue",
+      "continue": "Continuar",
       "movedDown": "Continua mais abaixo.",
       "connect": {
         "titleAccount": "Entre para conectar {{email}}",
@@ -25413,7 +25413,7 @@
         "turnOn": "Ativar",
         "copyForAdmin": "Copiar para o administrador",
         "checkAgain": "Verificar novamente",
-        "continue": "Continue",
+        "continue": "Continuar",
         "startOver": "Recomeçar"
       },
       "blocker": {
@@ -26536,7 +26536,7 @@
         "stepApp": "{{bot}} abre o Google Cloud e configura o app",
         "stepSignIn": "Você marca a caixa de termos do Google e entra",
         "stepCheck": "{{bot}} verifica se Gmail, Agenda e Drive funcionam",
-        "continue": "Continue"
+        "continue": "Continuar"
       },
       "connectDescription": "Dê aos seus bots acesso ao Gmail, Agenda e Drive. Seu login fica em {{host}}.",
       "links": {
@@ -26849,7 +26849,7 @@
         "fromLink": "De um link",
         "pasteDescription": "Cole um link que alguém compartilhou.",
         "link": "Link",
-        "continue": "Continue",
+        "continue": "Continuar",
         "have": "Você já tem este bot",
         "haveDetail": "{{name}} · criado em {{date}}",
         "close": "Fechar",
@@ -27108,7 +27108,7 @@
       "needsSignIn": "Precisa entrar",
       "toldBot": "Já entrei no Orca.",
       "signedIn": "Conectado ao Orca",
-      "continue": "Continue",
+      "continue": "Continuar",
       "webhooksChat": "Webhooks exigem login no Orca. Vou criá-lo assim que você entrar.",
       "eventsChat": "Eventos do {{source}} exigem login no Orca. Vou salvar esta regra assim que você entrar."
     },
@@ -27327,8 +27327,8 @@
         "tomorrow": "Amanhã",
         "monday": "Segunda-feira",
         "inHours_one": "Em {{count}} hora",
-        "inHours_other": "Em {{count}} hora",
-        "inHours_many": "Em {{count}} hora"
+        "inHours_other": "Em {{count}} horas",
+        "inHours_many": "Em {{count}} horas"
       }
     },
     "search": {

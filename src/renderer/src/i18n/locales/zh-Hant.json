@@ -24955,7 +24955,7 @@
         "stepApp": "{{bot}} 開啟 Google Cloud 並設定應用程式",
         "stepSignIn": "你勾選 Google 的條款並登入",
         "stepCheck": "{{bot}} 檢查 Gmail、行事曆和 Drive 是否正常",
-        "continue": "Continue"
+        "continue": "繼續"
       },
       "connectDescription": "讓你的機器人存取 Gmail、行事曆和 Drive。你的登入保留在 {{host}} 上。",
       "links": {
@@ -25037,7 +25037,7 @@
         "title": "我應該使用哪些 Google 服務？",
         "note": "使用其中任何一項，我都能按姓名查詢人員。之後還可以新增更多。"
       },
-      "continue": "Continue",
+      "continue": "繼續",
       "movedDown": "在下方繼續。",
       "connect": {
         "titleAccount": "登入以連線 {{email}}",
@@ -25083,7 +25083,7 @@
         "turnOn": "開啟",
         "copyForAdmin": "複製給管理員",
         "checkAgain": "再次檢查",
-        "continue": "Continue",
+        "continue": "繼續",
         "startOver": "重新開始"
       },
       "blocker": {
@@ -25366,7 +25366,7 @@
         "fromLink": "來自連結",
         "pasteDescription": "貼上別人分享的連結。",
         "link": "連結",
-        "continue": "Continue",
+        "continue": "繼續",
         "have": "你已經有此機器人",
         "haveDetail": "{{name}} · 建立於 {{date}}",
         "close": "關閉",
@@ -25430,10 +25430,8 @@
     "panel": {
       "idle": "閒置",
       "more": "更多的",
-      "needYou_one": "{{count}} 個需要您處理",
       "showNeedYou_one": "顯示面板 · {{count}} 項需要你處理",
       "showNeedYou_other": "顯示面板 · {{count}} 項需要你處理",
-      "working_one": "{{count}} 個執行中",
       "settings": {
         "title": "設定"
       },
@@ -25623,7 +25621,7 @@
       "needsSignIn": "需要登入",
       "toldBot": "我現在已登入 Orca。",
       "signedIn": "已登入 Orca",
-      "continue": "Continue",
+      "continue": "繼續",
       "webhooksChat": "Webhook 需要登入 Orca。你登入後我會建立它。",
       "eventsChat": "{{source}} 事件需要登入 Orca。你登入後我會儲存這條規則。"
     },
@@ -25863,11 +25861,7 @@
     "usageLimit": {
       "stoppedCount": "{{count}} 個已停止"
     },
-    "hover": {
-      "needsYouHeading_one": "有 1 件事需要你處理",
-      "moreAsks_one": "+{{count}} 個請求",
-      "itemsNeedYou_one": "它為你標記的 {{count}} 個事項"
-    }
+    "hover": {}
   },
   "agentPicker": {
     "catalogUnsupportedLaunch": "此主機上無法使用 {{agent}} 模型。目前的選擇仍會套用。",

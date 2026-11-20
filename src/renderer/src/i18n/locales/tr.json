@@ -25440,7 +25440,7 @@
         "stepApp": "{{bot}}, Google Cloud'u açar ve uygulamayı kurar",
         "stepSignIn": "Google'ın şartlar kutusunu işaretler ve oturum açarsınız",
         "stepCheck": "{{bot}}, Gmail, Takvim ve Drive'ın çalıştığını kontrol eder",
-        "continue": "Continue"
+        "continue": "Devam et"
       },
       "connectDescription": "Botlarınıza Gmail, Takvim ve Drive erişimi verin. Oturumunuz {{host}} üzerinde kalır.",
       "links": {
@@ -25522,7 +25522,7 @@
         "title": "Hangi Google hizmetlerini kullanayım?",
         "note": "Bunlardan herhangi biriyle kişileri adlarıyla bulabilirim. Daha sonra başkalarını ekleyebilirsiniz."
       },
-      "continue": "Continue",
+      "continue": "Devam et",
       "movedDown": "Aşağıda devam ediyor.",
       "connect": {
         "titleAccount": "{{email}} hesabını bağlamak için oturum açın",
@@ -25568,7 +25568,7 @@
         "turnOn": "Aç",
         "copyForAdmin": "Yöneticiniz için kopyala",
         "checkAgain": "Yeniden kontrol et",
-        "continue": "Continue",
+        "continue": "Devam et",
         "startOver": "Baştan başla"
       },
       "blocker": {
@@ -25851,7 +25851,7 @@
         "fromLink": "Bir bağlantıdan",
         "pasteDescription": "Birinin paylaştığı bir bağlantıyı yapıştırın.",
         "link": "Bağlantı",
-        "continue": "Continue",
+        "continue": "Devam et",
         "have": "Bu bota zaten sahipsiniz",
         "haveDetail": "{{name}} · {{date}} tarihinde oluşturuldu",
         "close": "Kapat",
@@ -26106,7 +26106,7 @@
       "needsSignIn": "Giriş gerekli",
       "toldBot": "Artık Orca'da oturum açtım.",
       "signedIn": "Orca'da oturum açıldı",
-      "continue": "Continue",
+      "continue": "Devam et",
       "webhooksChat": "Webhook'lar Orca oturumu gerektirir. Oturum açtığınızda onu oluşturacağım.",
       "eventsChat": "{{source}} olayları Orca oturumu gerektirir. Oturum açtığınızda bu kuralı kaydedeceğim."
     },

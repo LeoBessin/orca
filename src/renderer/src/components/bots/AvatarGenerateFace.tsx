@@ -60,7 +60,13 @@ export function useGenerateFace(
     /** The picture just made, unless another was taken in since. */
     made,
     picture,
-    supersede: () => setSuperseded(true),
+    supersede: () => {
+      setSuperseded(true)
+      // A run still going would land on top of the picture just taken in.
+      if (generation.run.kind === 'running') {
+        generation.cancel()
+      }
+    },
     description,
     setDescription: (next: string) => {
       setDescription(next)

@@ -10,7 +10,6 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { AgentIcon } from '@/components/agent/icons/AgentIcon'
 import { AgentIconLabel } from '@/components/agent/agent-combobox-items'
 import { useTranslate } from '@/i18n/use-translate'
@@ -24,9 +23,28 @@ import { useAvatarGeneration, type GeneratedAvatar } from './use-avatar-generati
 
 const TILE = 'size-28 rounded-xl'
 
-/** The Generate face's state, shared by its tile and the caption line under the carousel. */
-export function useGenerateFace(onResult: (result: GeneratedAvatar) => void) {
-  const generation = useAvatarGeneration(onResult)
+/** A picture the Generate slot shows: the one just made, or the user's own picture in use. */
+export type SlotPicture = { src: string; description: string }
+
+/**
+ * The Generate face's state, shared by its tile and the line under the carousel. `applied` is the
+ * user's own picture (generated earlier, uploaded, pasted or dropped); it holds the slot unless a
+ * newer picture was just made.
+ */
+export function useGenerateFace(
+  onResult: (result: GeneratedAvatar) => void,
+  applied: SlotPicture | null
+) {
+  // A picture taken in after the last one made (an upload, an undo) wins the slot back.
+  const [superseded, setSuperseded] = useState(false)
+  const generation = useAvatarGeneration((made) => {
+    setSuperseded(false)
+    onResult(made)
+  })
+  const made = generation.result && !superseded ? generation.result : null
+  const picture: SlotPicture | null = made
+    ? { src: `data:image/png;base64,${made.png}`, description: made.description }
+    : applied
   const [description, setDescription] = useState('')
   // Editing reopens the description field under a picture already made.
   const [editing, setEditing] = useState(false)
@@ -35,10 +53,14 @@ export function useGenerateFace(onResult: (result: GeneratedAvatar) => void) {
     count: 0,
     select: false
   })
-  // The field folds to one line of description once a picture is made.
-  const folded = generation.result !== null && !editing && generation.run.kind === 'idle'
+  // The field folds to one line of description while the slot holds a picture.
+  const folded = picture !== null && !editing && generation.run.kind === 'idle'
   return {
     ...generation,
+    /** The picture just made, unless another was taken in since. */
+    made,
+    picture,
+    supersede: () => setSuperseded(true),
     description,
     setDescription: (next: string) => {
       setDescription(next)
@@ -64,8 +86,8 @@ export type GenerateFace = ReturnType<typeof useGenerateFace>
 
 /** The face beside the current one: the picture made, or the Generate entry. */
 export function GenerateFaceThumb({ face }: { face: GenerateFace }): React.JSX.Element {
-  return face.result ? (
-    <img src={`data:image/png;base64,${face.result.png}`} alt="" className={TILE} />
+  return face.picture ? (
+    <img src={face.picture.src} alt="" className={cn(TILE, 'object-cover')} />
   ) : (
     <PromptTile />
   )
@@ -93,7 +115,7 @@ function PromptTile({
 
 const HINT_BUTTON = cn(
   TILE,
-  'group/edit relative overflow-hidden outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50'
+  'group/edit relative block overflow-hidden outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50'
 )
 
 /** The same hover and focus hint as the picture button that opens this picker. */
@@ -140,7 +162,7 @@ export function GenerateFaceTile({ face }: { face: GenerateFace }): React.JSX.El
       </button>
     )
   }
-  if (face.result) {
+  if (face.picture) {
     return (
       <button
         type="button"
@@ -148,7 +170,7 @@ export function GenerateFaceTile({ face }: { face: GenerateFace }): React.JSX.El
         onClick={face.edit}
         className={HINT_BUTTON}
       >
-        <img src={`data:image/png;base64,${face.result.png}`} alt="" className="size-full" />
+        <img src={face.picture.src} alt="" className="size-full object-cover" />
         <HintOverlay>
           <Pencil className="size-4" />
         </HintOverlay>
@@ -174,26 +196,19 @@ function AgentMenu({
   const label = getAgentLabel(agent)
   return (
     <DropdownMenu>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-xs"
-              disabled={disabled}
-              aria-label={t('bots.avatar.generate.agent', 'Generate with {{agent}}', {
-                agent: label
-              })}
-            >
-              <AgentIcon agent={agent} size={14} />
-            </Button>
-          </DropdownMenuTrigger>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" sideOffset={4}>
-          {t('bots.avatar.generate.agent', 'Generate with {{agent}}', { agent: label })}
-        </TooltipContent>
-      </Tooltip>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          disabled={disabled}
+          aria-label={t('bots.avatar.generate.agent', 'Generate with {{agent}}', {
+            agent: label
+          })}
+        >
+          <AgentIcon agent={agent} size={14} />
+        </Button>
+      </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-36">
         {agents.map((entry) => (
           <DropdownMenuItem
@@ -228,7 +243,7 @@ function DescriptionField({ face }: { face: GenerateFace }): React.JSX.Element {
   // Esc cancels a run, or folds the field back under the picture.
   const onEscape = running
     ? face.cancel
-    : face.editing && face.result !== null
+    : face.editing && face.picture !== null
       ? () => face.setEditing(false)
       : null
   const latestOnEscape = useRef(onEscape)
@@ -336,7 +351,7 @@ export function GenerateField({ face }: { face: GenerateFace }): React.JSX.Eleme
             onClick={face.edit}
             className="max-w-full cursor-text truncate rounded-sm text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50"
           >
-            {face.result?.description}
+            {face.picture?.description}
           </button>
         </p>
       </BotPictureRowFold>

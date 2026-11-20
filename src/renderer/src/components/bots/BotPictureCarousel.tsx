@@ -1,9 +1,10 @@
 // The picture carousel: the current face large, its wrapped neighbours dimmed beside it.
-import React from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useTranslate } from '@/i18n/use-translate'
+import { cn } from '@/lib/class-names'
 import { BotAvatarTile } from './BotAvatar'
 import { BotPictureVeil } from './BotPictureIntakeLine'
 
@@ -74,7 +75,28 @@ export function BotPictureCarousel({
 }): React.JSX.Element {
   const t = useTranslate()
   const count = faces.length
-  const go = (next: number): void => onIndexChange(((next % count) + count) % count)
+  // Faces slide only for a move the user made; a list that changes under them (Generate arriving
+  // once its agents are known, a picture taking a slot) lands in place.
+  const [sliding, setSliding] = useState(false)
+  const settle = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(
+    () => () => {
+      if (settle.current) {
+        clearTimeout(settle.current)
+      }
+    },
+    []
+  )
+  const go = (next: number): void => {
+    setSliding(true)
+    if (settle.current) {
+      clearTimeout(settle.current)
+    }
+    // A little past the 300 ms slide.
+    settle.current = setTimeout(() => setSliding(false), 400)
+    onIndexChange(((next % count) + count) % count)
+  }
+  const faceClass = cn(FACE_CLASS, !sliding && 'transition-none')
   return (
     <div
       role="group"
@@ -106,7 +128,7 @@ export function BotPictureCarousel({
         // A face that draws itself holds its own controls when current, so it isn't a button then.
         if (face.render && distance === 0) {
           return (
-            <div key={face.key} data-position={position} style={style} className={FACE_CLASS}>
+            <div key={face.key} data-position={position} style={style} className={faceClass}>
               {face.render(true)}
             </div>
           )
@@ -121,7 +143,7 @@ export function BotPictureCarousel({
             data-dropping={dropping || undefined}
             onClick={() => go(i)}
             style={style}
-            className={FACE_CLASS}
+            className={faceClass}
           >
             {face.render ? (
               face.render(false)

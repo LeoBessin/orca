@@ -173,19 +173,24 @@ export function BotPicturePicker({
   )
   // Generate is current while chosen, even before it holds a picture; selected is applied.
   const [onGenerate, setOnGenerate] = useState(false)
-  const face = useGenerateFace((made) => {
-    if (onGenerate) {
-      onUpload(made.png, -1)
-    }
-  })
+  const face = useGenerateFace(
+    (made) => {
+      if (onGenerate) {
+        onUpload(made.png, -1)
+      }
+    },
+    custom?.src ? { src: custom.src, description: custom.description } : null
+  )
   const withGenerate = face.agent !== null
-  const generatedCustom = withGenerate && isGeneratedCustom(custom?.src, face.result?.png ?? null)
+  // With Generate, the user's own picture lives in its slot: one tile, never two. An older
+  // picture with no image (an emoji) keeps its own face.
+  const customInSlot = withGenerate && Boolean(custom?.src)
   const order = pictureFaceOrder(
-    custom && !generatedCustom ? custom.after : null,
+    custom && !customInSlot ? custom.after : null,
     withGenerate ? generateSlot : null
   )
   const currentKey: PictureFaceKey =
-    withGenerate && (onGenerate || (showingCustom && generatedCustom))
+    withGenerate && (onGenerate || (showingCustom && customInSlot))
       ? GENERATE_FACE
       : showingCustom
         ? CUSTOM_FACE
@@ -209,6 +214,7 @@ export function BotPicturePicker({
     // A new picture replaces the custom one in place, or lands beside the mascot shown.
     onPicture: (png) => {
       setOnGenerate(false)
+      face.supersede()
       onUpload(png, showingCustom ? custom.after : mascotIndex)
     },
     undoable: onUndo !== undefined
@@ -221,15 +227,15 @@ export function BotPicturePicker({
     }
     setOnGenerate(key === GENERATE_FACE)
     face.setEditing(false)
-    if (key === GENERATE_FACE && !face.result && byPointer.current) {
+    if (key === GENERATE_FACE && !face.picture && byPointer.current) {
       face.focusField(false)
     }
     if (key === GENERATE_FACE) {
-      // Its picture, if one was made, becomes the bot's picture again.
-      if (face.result && generatedCustom) {
+      // The slot's picture becomes the bot's picture again; one made while away is applied now.
+      if (face.made && !isGeneratedCustom(custom?.src, face.made.png)) {
+        onUpload(face.made.png, -1)
+      } else if (face.picture) {
         onChange({ kind: 'custom' })
-      } else if (face.result) {
-        onUpload(face.result.png, -1)
       }
     } else if (key === CUSTOM_FACE) {
       onChange({ kind: 'custom' })
@@ -242,6 +248,7 @@ export function BotPicturePicker({
       line={line}
       onUndo={() => {
         intake.dismiss()
+        face.supersede()
         onUndo?.()
       }}
     >

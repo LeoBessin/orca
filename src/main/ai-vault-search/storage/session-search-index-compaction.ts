@@ -5,8 +5,9 @@ import { traceSessionSearch } from '../session-search-trace'
 const DELETED_KEY = 'fts_deleted_rows'
 // Deleted rows keep their index entries until a merge rewrites the oldest segment holding them.
 const MIN_DELETED_ROWS = 50_000
-const MERGE_PAGES_PER_STEP = 64
-const RECLAIM_PAGES_PER_STEP = 2000
+const MERGE_PAGES_PER_STEP = 32
+// 2000 pages per step held the search writer for up to 137 ms.
+const RECLAIM_PAGES_PER_STEP = 128
 // Work runs at a tenth of the writer thread, so indexing and queries keep their latency.
 const WORK_BEFORE_REST_MS = 25
 const REST_PER_WORK = 9

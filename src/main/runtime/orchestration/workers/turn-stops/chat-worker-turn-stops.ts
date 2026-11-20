@@ -182,7 +182,9 @@ export function chatWorkerTurnStopReporter(
               )
             const pendingHelperWake =
               stop.reason === 'finished' && current.hasOpenHelperDispatch(dispatch.id)
-                ? ((await deps.hasPendingHelperWake?.(dispatch.id, currentStop)) ?? false)
+                ? ((await deps
+                    .hasPendingHelperWake?.(dispatch.id, currentStop)
+                    .catch(() => false)) ?? false)
                 : false
             if (!currentStop()) {
               return

@@ -43,6 +43,9 @@ export function preparedCoordinatorMailCount(
   db: OrchestrationDb,
   dispatchId: string
 ): number | undefined {
+  if (db.db.isTransaction) {
+    return undefined
+  }
   const owner = owners.get(db)
   if (!owner) {
     return undefined
@@ -58,6 +61,11 @@ export async function prepareCoordinatorMailCount(
   dispatchId: string,
   current: () => boolean
 ): Promise<number | undefined> {
+  if (db.db.isTransaction) {
+    return undefined
+  }
+  const deadline = Date.now() + 5_000
+  const active = () => current() && Date.now() < deadline
   let owner = owners.get(db)
   if (!owner) {
     installCoordinatorMailCountTriggers(db)
@@ -71,14 +79,17 @@ export async function prepareCoordinatorMailCount(
       `INSERT OR IGNORE INTO orca_coordinator_mail_counts(dispatch_id, run_id) SELECT id, run_id FROM dispatch_contexts WHERE id = ? AND status IN ('pending', 'dispatched')`
     )
     .run(dispatchId)
-  while (current()) {
+  while (active()) {
+    if (db.db.isTransaction) {
+      return undefined
+    }
     const prepared = preparedCoordinatorMailCount(db, dispatchId)
     if (prepared !== undefined) {
       return prepared
     }
     let job = countOwner.jobs.get(dispatchId)
     if (!job) {
-      job = recover(db, dispatchId, current, countOwner).finally(() =>
+      job = recover(db, dispatchId, active, countOwner).finally(() =>
         countOwner.jobs.delete(dispatchId)
       )
       countOwner.jobs.set(dispatchId, job)
@@ -99,7 +110,7 @@ async function recover(
 ): Promise<void> {
   while (current()) {
     await setImmediate()
-    if (!current()) {
+    if (!current() || db.db.isTransaction) {
       return
     }
     refreshExternalWrites(db, owner)

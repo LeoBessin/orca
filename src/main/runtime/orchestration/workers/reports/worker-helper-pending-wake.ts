@@ -3,7 +3,6 @@ import type { DispatchContextRow } from '../../db/orchestration-records'
 import { DISPATCH_CONTEXT_COLUMN_LIST } from '../../db/row-column-lists'
 import { dispatchReportMailbox } from './dispatch-report-mailbox'
 import { localDispatchExecuting } from './worker-dispatch-execution'
-import { readRemoteWorkingDispatches } from './structured-session-remote-wake'
 
 /** An idle open helper is not a promise; follow only this worker's remaining wake chain. */
 export async function workerHasPendingHelperWake(
@@ -12,9 +11,6 @@ export async function workerHasPendingHelperWake(
     | 'getExistingOrchestrationDb'
     | 'isOrchestrationWorkerWorking'
     | 'canPromiseOrchestrationHelperReport'
-    | 'canPromiseOrchestrationWorkerWake'
-    | 'resolveOrchestrationWorkerServer'
-    | 'callOrchestrationWorkerServer'
   >,
   dispatchId: string,
   isCurrent: () => boolean
@@ -23,19 +19,19 @@ export async function workerHasPendingHelperWake(
   if (!db) {
     return false
   }
-  let remoteDeadline: number | undefined
   const seen = new Set<string>()
   let remaining = 256
   let finished = false
-  const current = () => !finished && isCurrent()
-  const visit = async (parentId: string): Promise<boolean> => {
+  const deadline = Date.now() + 5_000
+  const current = () => !finished && isCurrent() && Date.now() < deadline
+  const visit = async (parentId: string): Promise<(() => boolean) | null> => {
     if (!current() || seen.has(parentId) || remaining <= 0) {
-      return false
+      return null
     }
     seen.add(parentId)
     const parent = db.getDispatchContextById(parentId)
     if (!parent || parent.status !== 'dispatched') {
-      return false
+      return null
     }
     // Unknown wake evidence leaves the ordinary stop reporter responsible for informing the parent.
     const rows = db.db
@@ -44,14 +40,12 @@ export async function workerHasPendingHelperWake(
       .all(parentId, Math.min(remaining, 100) + 1)
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the query uses the complete schema-owned Dispatch projection.
     const helpers = rows as DispatchContextRow[]
-    const remote = new Map(
-      db.listFederatedDispatchesByIds(helpers.map((h) => h.id)).map((h) => [h.dispatch_id, h])
-    )
     const eligible = (id: string) => {
       const helper = db.getDispatchContextById(id)
       const state = db.getWorkerDispatch(id)?.state
       return (
         current() &&
+        !db.getFederatedDispatch(id) &&
         !!helper &&
         helper.status === 'dispatched' &&
         helper.run_id === parent.run_id &&
@@ -59,50 +53,36 @@ export async function workerHasPendingHelperWake(
         (!state || state === 'ready')
       )
     }
-    const remoteIds: string[] = []
     for (const helper of helpers.slice(0, 100)) {
       remaining -= 1
       if (remaining < 0) {
-        return false
+        return null
       }
       if (!current()) {
-        return false
+        return null
       }
       if (!eligible(helper.id)) {
         continue
       }
-      if (remote.has(helper.id)) {
-        if (runtime.canPromiseOrchestrationWorkerWake({ kind: 'local', dispatch: helper })) {
-          remoteIds.push(helper.id)
-        }
-        continue
-      }
-      if (localDispatchExecuting(runtime, db, helper) || (await visit(helper.id))) {
-        if (
-          eligible(helper.id) &&
-          (await runtime.canPromiseOrchestrationHelperReport(helper, current)) &&
-          eligible(helper.id)
-        ) {
-          return true
-        }
+      const evidence = localDispatchExecuting(runtime, db, helper)
+        ? () => localDispatchExecuting(runtime, db, helper)
+        : await visit(helper.id)
+      if (
+        evidence &&
+        eligible(helper.id) &&
+        (await runtime.canPromiseOrchestrationHelperReport(helper, current)) &&
+        eligible(helper.id) &&
+        evidence()
+      ) {
+        return () => eligible(helper.id) && evidence()
       }
     }
-    if (!current() || remoteIds.length === 0) {
-      return false
-    }
-    remoteDeadline ??= Date.now() + 5_000
-    const deadline = remoteDeadline
-    const remoteCurrent = () => current() && Date.now() < deadline
-    const working = await readRemoteWorkingDispatches(
-      runtime,
-      remoteIds.flatMap((id) => remote.get(id) ?? []),
-      remoteCurrent,
-      eligible
-    )
-    return [...working].some(eligible)
+    return null
   }
   try {
-    return await visit(dispatchId)
+    return (await visit(dispatchId))?.() ?? false
+  } catch {
+    return false
   } finally {
     finished = true
   }

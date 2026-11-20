@@ -298,6 +298,18 @@ it.each([1_000, 10_000])(
         .prepare('UPDATE messages SET body = ? WHERE id = ?')
         .run('External unrelated edit', mail.id)
       expect(await liveRecovery).toBe(1)
+      const laterMail = database.insertMessage({
+        runId: run.id,
+        from: 'term_parent',
+        to: `dispatch:${helper.id}`,
+        subject: 'External read'
+      })
+      outside.prepare('UPDATE messages SET read = 1 WHERE id = ?').run(laterMail.id)
+      database.db.exec('SAVEPOINT external_count')
+      expect(readCoordinatorMailCount(database, helper.id)).toBe(2)
+      database.db.exec('ROLLBACK TO external_count; RELEASE external_count')
+      expect(readCoordinatorMailCount(database, helper.id)).toBe(2)
+      expect(await prepareCoordinatorMailCount(database, helper.id, () => true)).toBe(2)
       // A second active owner shares the indexed Run. Retiring it must not retain obsolete work.
       const removedTask = database.createTask({ spec: 'Removed helper', runId: run.id })
       const removed = createRootDispatch(database, removedTask.id, 'term_removed', 'tab:removed')

@@ -78,6 +78,17 @@ it('reports a stopped worker after its later-created helper reports idle, preser
   )?.[0]
   queries.mockRestore()
   externalCommit.mockRestore()
+  const promiseReport = runtime.canPromiseOrchestrationHelperReport.bind(runtime)
+  const becameIdle = vi
+    .spyOn(runtime, 'canPromiseOrchestrationHelperReport')
+    .mockImplementation(async (...args) => {
+      const report = await promiseReport(...args)
+      active.clear()
+      return report
+    })
+  expect(await pending()).toBe(false)
+  becameIdle.mockRestore()
+  active.add('tab:h')
   expect(rejectionSql).toBeDefined()
   const rejectionPlan = db.db
     .prepare(`EXPLAIN QUERY PLAN ${rejectionSql!}`)
@@ -94,12 +105,19 @@ it('reports a stopped worker after its later-created helper reports idle, preser
   db.resetMessages()
   expect(await recoveringAcrossReset).toBe(true)
   active.clear()
-  reportWorkerTurnStop(
-    db,
-    { kind: 'local', dispatch: db.getDispatchContextById(helper.id)! },
-    { from: 'term_h', reason: 'finished', lastOutput: 'Second helper marker' },
-    deps
-  )
+  expect(
+    reportWorkerTurnStop(
+      db,
+      { kind: 'local', dispatch: db.getDispatchContextById(helper.id)! },
+      { from: 'term_h', reason: 'finished', lastOutput: 'Second helper marker' },
+      deps
+    )
+  ).toBe(true)
+  expect(
+    db.db
+      .prepare("SELECT body FROM messages WHERE to_handle = ? AND type = 'escalation'")
+      .all(`dispatch:${worker.id}`)
+  ).toEqual([expect.objectContaining({ body: expect.stringContaining('Second helper marker') })])
   db.db.prepare('UPDATE messages SET read = 1 WHERE to_handle = ?').run(`dispatch:${worker.id}`)
   expect(await pending()).toBe(false)
   notify.mockClear()

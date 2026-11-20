@@ -15,7 +15,11 @@ import '../../db/attempt-outcome-projection'
 import { createRootDispatch } from '../../db/root-dispatch-test-fixture'
 import { TerminalWorkerTurnStops } from './terminal-worker-turn-stops'
 import { reportWorkerTurnStop } from './worker-turn-stop-report'
-import { canPromiseWorkerFinishReport } from './worker-finish-report-eligibility'
+import {
+  canPromiseWorkerFinishReport,
+  canPromiseHelperFinishReport
+} from './worker-finish-report-eligibility'
+import { prepareCoordinatorMailCount } from '../../db/messages/prepared-coordinator-mail-count'
 
 const PANE = makePaneKey('tab-worker', '11111111-1111-4111-8111-111111111111')
 const HANDLE = 'term_worker'
@@ -433,4 +437,119 @@ it('promises only a fresh unmuted finish report', () => {
   expect(plan.map((row) => String(row.detail)).some((detail) => detail.startsWith('SCAN'))).toBe(
     false
   )
+})
+
+it.each(['chat', 'terminal'])(
+  'reports an ordinary %s stop when its helper query rejects',
+  async (kind) => {
+    const ctx = setup(kind === 'chat' ? formatOrcaSessionAddress(CHAT_SESSION) : HANDLE)
+    const helperTask = ctx.db.createTask({ spec: 'Helper', runId: ctx.run.id })
+    const helper = createRootDispatch(ctx.db, helperTask.id, 'term_helper')
+    ctx.db.db
+      .prepare('UPDATE dispatch_contexts SET creator_dispatch_id = ? WHERE id = ?')
+      .run(ctx.dispatch.id, helper.id)
+    Object.assign(ctx.deps, {
+      hasPendingHelperWake: async () => {
+        throw new Error('unavailable')
+      }
+    })
+    if (kind === 'chat') {
+      const chat = chatWithTimers(ctx)
+      chat.finish('turn-1')
+      chat.runTimers()
+    } else {
+      const current = { row: hookRow({ state: 'working' }) }
+      const stops = terminal(ctx, current)
+      stops.observe({
+        kind: 'observed',
+        paneKey: PANE,
+        workspace: { worktreeId: 'repo::/tmp/wt', sshHostId: null },
+        phase: 'working',
+        at: 1
+      })
+      current.row = hookRow({})
+      stops.observe(moved('working', 'done'))
+    }
+    await settle()
+    expect(ctx.mail().map((mail) => mail.subject)).toEqual(['Worker stopped without reporting'])
+    ctx.db.close()
+  }
+)
+
+it.each(['rejection', 'deleted mail'])(
+  'rejects a finish promise after %s changes during preparation',
+  async (change) => {
+    const ctx = setup()
+    writeAndTake(ctx)
+    reportWorkerTurnStop(
+      ctx.db,
+      { kind: 'local', dispatch: ctx.dispatch },
+      { from: HANDLE, reason: 'finished' },
+      ctx.deps
+    )
+    const next = ctx.db.insertMessage({
+      runId: ctx.run.id,
+      from: 'term_coordinator',
+      to: `dispatch:${ctx.dispatch.id}`,
+      subject: 'Next round'
+    })
+    ctx.db.markAsRead([next.id])
+    expect(await prepareCoordinatorMailCount(ctx.db, ctx.dispatch.id, () => true)).toBe(2)
+    const pending = canPromiseHelperFinishReport(ctx.db, ctx.dispatch, ctx.deps, () => true)
+    if (change === 'rejection') {
+      ctx.db.insertMessage({
+        runId: ctx.run.id,
+        from: HANDLE,
+        to: `run:${ctx.run.id}`,
+        type: 'worker_done',
+        subject: 'Rejected',
+        payload: JSON.stringify({
+          dispatchId: ctx.dispatch.id,
+          _orcaLifecycleRejection: { code: 'invalid' }
+        })
+      })
+    } else {
+      ctx.db.db.prepare('DELETE FROM messages WHERE id = ?').run(next.id)
+    }
+    expect(await pending).toBe(false)
+    ctx.db.close()
+  }
+)
+
+it('allows a remote finish after an unrelated earlier prompt report', () => {
+  const db = new OrchestrationDb(':memory:')
+  try {
+    db.createRemoteDispatchAttachment({
+      runId: 'run_home',
+      dispatchId: 'ctx_remote',
+      taskId: 'task_home',
+      homePeerFingerprint: 'peer_home',
+      protocolVersion: 3,
+      runtimeEpoch: 'epoch',
+      mutationReceipt: {
+        callerFingerprint: 'peer_home',
+        requestId: 'remote_prompt_finish',
+        method: 'orchestration.federationAttachStart',
+        payloadHash: 'remote_prompt_finish'
+      }
+    })
+    const attachment = db.getRemoteDispatchAttachment('ctx_remote')!
+    const target = { kind: 'remote' as const, attachment }
+    const deps = { getDb: () => db, notify: vi.fn(), isWaitingForMail: () => false }
+    expect(
+      reportWorkerTurnStop(
+        db,
+        target,
+        { from: 'term_remote', reason: 'needs-input', stopKey: 'prompt' },
+        deps
+      )
+    ).toBe(true)
+    expect(canPromiseWorkerFinishReport(db, target, deps)).toBe(true)
+    expect(
+      reportWorkerTurnStop(db, target, { from: 'term_remote', reason: 'finished' }, deps)
+    ).toBe(true)
+    expect(canPromiseWorkerFinishReport(db, target, deps)).toBe(false)
+  } finally {
+    db.close()
+  }
 })

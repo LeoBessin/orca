@@ -242,6 +242,7 @@ export function createClaudeJournalTranslator(
       publishClaudeTurnActivity(turn, deps.sink, event)
       // Idle also closes faults without a result; the live cause decides failed reopening.
       if (claudeSessionStateEndsTurn(event.message)) {
+        messageContext.threadGoal.observe(event.message)
         corrections.abandon()
         // No verdict: the CLI said the turn is over, not how it ended.
         turn.settle({ state: 'completed', completedAt: event.observedAt ?? Date.now() })

@@ -61,7 +61,9 @@ export abstract class OrcaRuntimeWithAgentOrchestrationDependencies extends Orca
       selectFreshExplicitAgentStatus({
         handle,
         paneKey,
-        hookRows: this.publicPaneStatusFn?.(paneKey, handle) ?? []
+        hookRows: (this.publicPaneStatusFn?.(paneKey, handle) ?? []).filter(
+          (row) => !row.terminalHandle || row.terminalHandle === handle
+        )
       })?.status === 'working'
     )
   }

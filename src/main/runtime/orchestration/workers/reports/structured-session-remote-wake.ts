@@ -67,7 +67,17 @@ export async function readRemoteWorkingDispatches(
           undefined,
           {
             expectedEnvironmentPairingRevision: server.pairingRevision,
-            prepareGuard: async () => current
+            prepareGuard: async () => {
+              if (!current()) {
+                throw new Error('Worker observation is no longer current.')
+              }
+              return () => {
+                if (!current()) {
+                  throw new Error('Worker observation is no longer current.')
+                }
+                return true
+              }
+            }
           }
         )
         if (!current()) {

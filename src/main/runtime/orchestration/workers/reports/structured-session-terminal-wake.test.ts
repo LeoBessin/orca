@@ -73,6 +73,8 @@ it.each([750, 7_500])(
     })
     db.markWorkerDispatchReady(started.dispatch.id)
     expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(true)
+    rows[0]!.terminalHandle = 'term_previous_worker'
+    expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(false)
     rows = []
     expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(false)
     rows = [

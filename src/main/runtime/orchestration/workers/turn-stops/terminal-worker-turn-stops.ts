@@ -99,13 +99,16 @@ export class TerminalWorkerTurnStops {
       reason === 'finished' &&
       resolved.target.kind === 'local' &&
       resolved.db.hasOpenHelperDispatch(resolved.target.dispatch.id)
-        ? ((await this.deps.hasPendingHelperWake?.(resolved.target.dispatch.id, () => {
-            const latest = this.stillStopped(stop)
-            return (
-              !!latest &&
-              workerTurnStopDispatchId(latest.target) === workerTurnStopDispatchId(resolved.target)
-            )
-          })) ?? false)
+        ? ((await this.deps
+            .hasPendingHelperWake?.(resolved.target.dispatch.id, () => {
+              const latest = this.stillStopped(stop)
+              return (
+                !!latest &&
+                workerTurnStopDispatchId(latest.target) ===
+                  workerTurnStopDispatchId(resolved.target)
+              )
+            })
+            .catch(() => false)) ?? false)
         : false
     const afterWake = this.stillStopped(stop)
     if (

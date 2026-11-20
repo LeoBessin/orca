@@ -48,18 +48,14 @@ it.each([
   [1_000, 10]
 ])('batches %i remote workers into %i observations', async (count, calls) => {
   const ids = remoteWorkers(count)
-  const call = vi
-    .spyOn(runtime, 'callOrchestrationWorkerServer')
-    .mockImplementation(async (_server, method, params) => {
-      expect(method).toBe('orchestration.federationFleetSnapshot')
-      expect(params).toMatchObject({ workingOnly: true })
-      return {
-        items: []
-      }
-    })
+  const call = vi.spyOn(runtime, 'callOrchestrationWorkerServer').mockResolvedValue({ items: [] })
   expect(
     await readRemoteWorkingDispatches(runtime, db.listFederatedDispatchesByIds(ids), () => true)
   ).toEqual(new Set())
+  for (const [, method, params] of call.mock.calls) {
+    expect(method).toBe('orchestration.federationFleetSnapshot')
+    expect(params).toMatchObject({ workingOnly: true })
+  }
   expect(call).toHaveBeenCalledTimes(calls)
   expect(db.listFederatedDispatchesByIds).toHaveBeenCalledTimes(1)
 })
@@ -145,7 +141,9 @@ it.each([100, 1_000])(
     for (const resolve of responses.slice(1)) {
       resolve({ items: [] })
     }
-    await vi.waitFor(() => expect(call).toHaveBeenCalledTimes(admitted))
+    await Promise.allSettled(call.mock.results.map((result) => result.value))
+    await new Promise<void>((resolve) => setImmediate(resolve))
+    expect(call).toHaveBeenCalledTimes(admitted)
     expect(admitted).toBeLessThanOrEqual(4)
   }
 )

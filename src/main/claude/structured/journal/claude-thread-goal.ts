@@ -13,6 +13,7 @@ import {
 } from './claude-structured-item-translation'
 import { claudeEnvelopeStopHookFeedbackRow } from './claude-stop-hook-feedback'
 import { isRootClaudeFrame } from '../turns/claude-turn-opening'
+import { claudeSessionStateEndsTurn } from '../turns/claude-session-state-turn-over'
 import type { ClaudeGoalBackgroundWork } from '../../background-tasks/claude-background-task-tracker'
 
 const GOAL_SET = 'Goal set: '
@@ -108,10 +109,8 @@ export class ClaudeThreadGoal {
     const next: AgentJournalThreadGoal | null =
       report.kind === 'cleared'
         ? null
-        : report.checks !== undefined &&
-            current?.status === 'active' &&
-            current.objective === report.objective
-          ? { ...current, checks: report.checks }
+        : current?.status === 'active' && current.objective === report.objective
+          ? { ...current, checks: Math.max(current.checks ?? 0, report.checks ?? 0) }
           : {
               checks: report.checks ?? 0,
               objective: report.objective,
@@ -175,6 +174,10 @@ export class ClaudeThreadGoal {
   observe(message: Record<string, unknown>): void {
     if (!isRootClaudeFrame(message) || this.current?.status !== 'active') {
       return
+    }
+    if (claudeSessionStateEndsTurn(message)) {
+      this.modelWorked = false
+      this.deferredForWake = false
     }
     const reply = claudeRecord(message.message)
     if (message.type === 'assistant' && reply?.model !== '<synthetic>') {

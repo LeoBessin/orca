@@ -6,10 +6,12 @@ it.each([
   { continued: false, otherHook: false, expectedStatus: 'active' },
   { continued: true, otherHook: false, expectedStatus: 'complete' },
   { continued: true, otherHook: true, expectedStatus: 'complete' },
-  { continued: false, otherHook: false, expectedStatus: 'active', long: true }
+  { continued: false, otherHook: false, expectedStatus: 'active', long: true },
+  { continued: true, otherHook: false, expectedStatus: 'complete', idle: true },
+  { continued: false, otherHook: false, expectedStatus: 'active', resumed: true }
 ])(
   'settles rejected goals after model continuation: $continued, other hook rejection: $otherHook',
-  ({ continued, otherHook, expectedStatus, long }) => {
+  ({ continued, otherHook, expectedStatus, long, idle, resumed }) => {
     const objective = long ? 'a'.repeat(510) : 'Finish the worker task'
     const rows: AgentJournalItemBody[] = []
     const translator = createClaudeJournalTranslator({
@@ -56,6 +58,20 @@ it.each([
           ]
         }
       })
+      if (resumed) {
+        answer(`Goal active: ${objective} (not yet evaluated)`, '<synthetic>')
+      }
+      if (idle) {
+        translator.goal.deferForWake()
+        frame({ type: 'system', subtype: 'session_state_changed', state: 'idle' })
+      }
+      if (idle) {
+        translator.goal.deferForWake()
+        frame({ type: 'system', subtype: 'session_state_changed', state: 'idle' })
+      }
+      if (resumed) {
+        answer(`Goal active: ${objective} (not yet evaluated)`, '<synthetic>')
+      }
       if (continued) {
         answer('The worker reported and the task is finished.')
       }

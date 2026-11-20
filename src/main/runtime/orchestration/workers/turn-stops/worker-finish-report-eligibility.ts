@@ -1,4 +1,7 @@
-import { prepareCoordinatorMailCount } from '../../db/messages/prepared-coordinator-mail-count'
+import {
+  prepareCoordinatorMailCount,
+  preparedCoordinatorMailCount
+} from '../../db/messages/prepared-coordinator-mail-count'
 import { stopReportId } from './worker-stop-report-id'
 import type { DispatchContextRow } from '../../db/orchestration-records'
 import type { OrchestrationDb } from '../../db/orchestration-db'
@@ -30,11 +33,14 @@ export function canPromiseWorkerFinishReport(
     return false
   }
   if (target.kind === 'remote') {
+    const count = db.getDispatchContextById(id) ? preparedCoordinatorMailCount(db, id) : 0
     return (
+      count !== undefined &&
+      !db.hasPendingFederatedWorkerReport(id) &&
       db.db
         .prepare(`SELECT 1 FROM federation_relay_items
-      WHERE dispatch_id = ? AND direction = 'to_home' AND kind IN ('escalation', 'worker_done') LIMIT 1`)
-        .get(id) === undefined
+        WHERE dispatch_id = ? AND direction = 'to_home' AND message_id = ? LIMIT 1`)
+        .get(id, stopReportId(id, `finished:${count}`)) === undefined
     )
   }
   return (
@@ -64,8 +70,7 @@ export async function canPromiseHelperFinishReport(
   if (canPromiseWorkerFinishReport(db, { kind: 'local', dispatch }, deps)) {
     return true
   }
-  if (
-    db.getFederatedDispatch(dispatch.id) ||
+  const rejected = () =>
     db.db
       .prepare(`SELECT 1 FROM messages
     WHERE json_valid(payload) AND json_extract(payload, '$.dispatchId') = ?
@@ -73,14 +78,16 @@ export async function canPromiseHelperFinishReport(
         (type = 'worker_done' AND json_type(payload, '$._orcaLifecycleRejection.code') IS 'text'))
       AND type = 'worker_done' AND json_type(payload, '$._orcaLifecycleRejection.code') IS 'text'
     LIMIT 1`)
-      .get(dispatch.id)
-  ) {
+      .get(dispatch.id) !== undefined
+  if (db.getFederatedDispatch(dispatch.id) || rejected()) {
     return false
   }
-  const count = await prepareCoordinatorMailCount(db, dispatch.id, current)
+  await prepareCoordinatorMailCount(db, dispatch.id, current)
+  const count = preparedCoordinatorMailCount(db, dispatch.id)
   return (
     current() &&
     count !== undefined &&
+    !rejected() &&
     !deps.isWaitingForMail(`dispatch:${dispatch.id}`) &&
     !workerFinishReportMuted(db, { kind: 'local', dispatch }, undefined) &&
     !db.getMessageById(stopReportId(dispatch.id, `finished:${count}`))

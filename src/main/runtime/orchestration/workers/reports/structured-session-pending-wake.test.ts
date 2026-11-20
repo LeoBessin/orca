@@ -3,7 +3,6 @@ import { formatOrcaSessionAddress } from '../../../../../shared/agent-session/id
 import { testOrcaSessionId } from '../../../../../shared/agent-session/identity/orca-session-address-test-fixture'
 import { getOrchestrationPeerCapabilityCache } from '../../federation/orchestration-peer-capability-cache'
 import { ORCHESTRATION_WORKER_WAKE_OBSERVATION_RUNTIME_CAPABILITY } from '../../../../../shared/orchestration/orchestration-runtime-capabilities'
-import { stopReportId } from '../turn-stops/worker-stop-report-id'
 import { structuredSessionHasPendingWake } from './structured-session-pending-wake'
 import {
   COORDINATOR,
@@ -82,6 +81,17 @@ it('defers for the parent’s running work until it settles, never for another s
     async () => expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(false),
     WAIT
   )
+  const followUp = db.insertMessage({
+    runId,
+    from: formatOrcaSessionAddress(testOrcaSessionId(COORDINATOR)),
+    to: `dispatch:${started.dispatch.id}`,
+    subject: 'Another round'
+  })
+  db.markAsRead([followUp.id])
+  expect(await sendUserMessage(PEER_CHAT, 'Do the next round')).toMatchObject({ ok: true })
+  await vi.waitFor(() => expect(connectionFor(PEER_CHAT).turns).toHaveLength(3), WAIT)
+  expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(true)
+  await settleTurn(PEER_CHAT, 2)
   db.completeDispatch(started.dispatch.id)
   expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(false)
 })
@@ -142,24 +152,33 @@ it.each([1_000, 10_000])(
     spy.mockRestore()
     expect(globalStatuses).not.toHaveBeenCalled()
     expect(runCandidates).not.toHaveBeenCalled()
-    expect(status).toHaveBeenCalledTimes(1)
+    expect(status).toHaveBeenCalledTimes(2)
     const creatorRead = queries.find((sql) => sql.includes('WHERE creator_orca_session_id = ?'))!
     expect(creatorRead).toBeDefined()
     const plan = prepare(`EXPLAIN QUERY PLAN ${creatorRead}`)
       .all(COORDINATOR, null)
       .map((row) => String(row.detail))
     expect(plan.filter((detail) => detail.startsWith('SCAN'))).toEqual([])
+    expect(
+      plan.filter((detail) => detail.startsWith('SEARCH') && detail.includes('status=?'))
+    ).toHaveLength(2)
   }
 )
 
-it('does not defer for a consumed remote finish whose execution-host relay has expired', async () => {
+it('rejects a remote observation after its binding is released', async () => {
   await openChat(COORDINATOR)
-  const { taskId, runId } = await coordinatorRunAndTask()
+  const { taskId } = await coordinatorRunAndTask()
   const started = db.createStartingWorkerDispatch({
     creator: { kind: 'session', orcaSessionId: testOrcaSessionId(COORDINATOR) },
     maxDepth: 10,
     taskId,
-    startOptions: {}
+    startOptions: {},
+    federation: {
+      environmentId: 'host',
+      environmentName: 'Host',
+      peerFingerprint: 'peer',
+      protocolVersion: 3
+    }
   })
   db.prepareStartingWorkerAuthority({
     dispatchId: started.dispatch.id,
@@ -171,24 +190,12 @@ it('does not defer for a consumed remote finish whose execution-host relay has e
     setupState: 'not_applicable'
   })
   db.markWorkerDispatchReady(started.dispatch.id)
-  vi.spyOn(db, 'listFederatedDispatchesByIds').mockReturnValue([
-    {
-      dispatch_id: started.dispatch.id,
-      environment_id: 'host',
-      environment_name: 'Host',
-      peer_fingerprint: 'peer',
-      remote_runtime_epoch: 'epoch',
-      protocol_version: 1,
-      remote_worktree_id: null,
-      remote_terminal_handle: null,
-      to_home_imported_sequence: 0,
-      to_home_acknowledged_sequence: 0,
-      home_auto_release_at: null,
-      home_auto_release_state: null,
-      created_at: '2026-11-17',
-      updated_at: '2026-11-17'
-    }
-  ])
+  db.updateFederatedDispatchResources({
+    dispatchId: started.dispatch.id,
+    remoteRuntimeEpoch: 'epoch',
+    worktreeId: 'remote-workspace',
+    terminalHandle: 'term_remote'
+  })
   vi.spyOn(runtime, 'resolveOrchestrationWorkerServer').mockResolvedValue({
     environmentId: 'host',
     name: 'Host',
@@ -205,17 +212,17 @@ it('does not defer for a consumed remote finish whose execution-host relay has e
     items: [{ dispatchId: started.dispatch.id, observation: { exactWorker: true, working: true } }]
   })
   expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(true)
-  const report = db.insertMessage({
-    id: stopReportId(started.dispatch.id, 'finished:1'),
-    from: 'term_remote',
-    to: formatOrcaSessionAddress(testOrcaSessionId(COORDINATOR)),
-    subject: 'Worker stopped without reporting',
-    type: 'escalation',
-    payload: JSON.stringify({ dispatchId: started.dispatch.id }),
-    runId
+  observe.mockImplementation(async () => {
+    db.db
+      .prepare(
+        'UPDATE federated_dispatches SET remote_terminal_handle = NULL WHERE dispatch_id = ?'
+      )
+      .run(started.dispatch.id)
+    return {
+      items: [
+        { dispatchId: started.dispatch.id, observation: { exactWorker: true, working: true } }
+      ]
+    }
   })
-  db.markAsRead([report.id])
-  observe.mockClear()
   expect(await structuredSessionHasPendingWake(runtime, COORDINATOR)).toBe(false)
-  expect(observe).not.toHaveBeenCalled()
 })

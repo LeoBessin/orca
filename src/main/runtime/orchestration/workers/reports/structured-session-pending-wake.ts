@@ -13,8 +13,10 @@ export async function structuredSessionHasPendingWake(
   sessionId: string,
   isCurrent: () => boolean = () => true
 ): Promise<boolean> {
+  const deadline = Date.now() + 5_000
+  const current = () => isCurrent() && Date.now() < deadline
   const db = runtime.getExistingOrchestrationDb()
-  if (!isCurrent() || !db || !isOrcaSessionId(sessionId)) {
+  if (!current() || !db || !isOrcaSessionId(sessionId)) {
     return false
   }
   const party = addressableSessionParty(sessionId, db)
@@ -51,17 +53,26 @@ export async function structuredSessionHasPendingWake(
   const eligible = (dispatchId: string) => {
     const state = db.getWorkerDispatch(dispatchId)?.state
     const dispatch = db.getDispatchContextById(dispatchId)
+    const expected = remote.get(dispatchId)
+    const binding = expected ? db.getFederatedDispatch(dispatchId) : undefined
     return (
-      isCurrent() &&
+      current() &&
       reportsHere(dispatchId) &&
       (!state || state === 'ready') &&
-      (!remote.has(dispatchId) ||
-        (!!dispatch && runtime.canPromiseOrchestrationWorkerWake({ kind: 'local', dispatch })))
+      (!expected ||
+        (!!dispatch &&
+          dispatchReportMailbox(db, dispatch) === `run:${dispatch.run_id}` &&
+          !!binding &&
+          !!binding.remote_terminal_handle &&
+          binding.environment_id === expected.environment_id &&
+          binding.peer_fingerprint === expected.peer_fingerprint &&
+          binding.remote_runtime_epoch === expected.remote_runtime_epoch &&
+          binding.remote_terminal_handle === expected.remote_terminal_handle))
     )
   }
   const remoteIds: string[] = []
   for (const dispatch of candidates) {
-    if (!isCurrent()) {
+    if (!current()) {
       return false
     }
     if (!eligible(dispatch.id)) {
@@ -74,18 +85,23 @@ export async function structuredSessionHasPendingWake(
     if (
       localDispatchExecuting(runtime, db, dispatch) &&
       eligible(dispatch.id) &&
-      runtime.canPromiseOrchestrationWorkerWake({ kind: 'local', dispatch })
+      (await runtime.canPromiseOrchestrationHelperReport(
+        dispatch,
+        () => current() && eligible(dispatch.id)
+      )) &&
+      eligible(dispatch.id) &&
+      localDispatchExecuting(runtime, db, dispatch)
     ) {
       return true
     }
   }
-  if (!isCurrent() || remoteIds.length === 0) {
+  if (!current() || remoteIds.length === 0) {
     return false
   }
   const working = await readRemoteWorkingDispatches(
     runtime,
     remoteIds.flatMap((id) => remote.get(id) ?? []),
-    isCurrent,
+    current,
     eligible
   )
   return [...working].some(eligible)
